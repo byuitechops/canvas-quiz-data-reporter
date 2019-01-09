@@ -1,0 +1,27 @@
+{
+  "name": "canvas-quiz-data-reporter",
+  "version": "1.0.0",
+  "description": "Gathers and sorts through quiz data",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/byuitechops/canvas-quiz-data-reporter.git"
+  },
+  "keywords": [
+    "quiz",
+    "data",
+    "canvas"
+  ],
+  "author": "Aaron Shiffler, Seth Farr",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/byuitechops/canvas-quiz-data-reporter/issues"
+  },
+  "homepage": "https://github.com/byuitechops/canvas-quiz-data-reporter#readme",
+  "dependencies": {
+    "d3-dsv": "^1.0.10"
+  }
+}

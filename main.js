@@ -1,10 +1,12 @@
 const d3 = require('d3-dsv');
 const fs = require('fs');
 const path = require('path');
-const inquirer = require('inquirer');
 
 const quizDataGatherer = require('quizDataGatherer.js');
-const quizDataReducer = require('quizDataReducer.js');
+// const quizDataReducer = require('quizDataReducer.js');
+const promiseQueueLimit = require('promiseQUeueLimit.js');
+
+let queueLimit = 50;
 
 /*************************************************************************
  * 
@@ -37,7 +39,9 @@ function getInputs() {
 /*************************************************************************
  * 
  *************************************************************************/
-function output() {}
+function output() {
+
+}
 
 
 /*************************************************************************
@@ -45,7 +49,9 @@ function output() {}
  *************************************************************************/
 function main() {
     var input = getInputs();
-    var quizData = promiseQueueLimiter (input.courseList, );
+    var queueLimiterAdapter = (key1, key2) => async (course) => Promise.resolve ( quizDataGatherer(course.id, key1, key2) );
+    promiseQueueLimit ( input.courseList, queueLimiterAdapter(input.key1, input.key2), queueLimit, (err, data) => console.log(data) );
 }
 
 main();
+
