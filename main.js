@@ -1,49 +1,51 @@
-let d3 = require("d3-dsv");
-let fs = require("fs");
-let enquirer = require('inquirer');
+const d3 = require('d3-dsv');
+const fs = require('fs');
+const path = require('path');
+const inquirer = require('inquirer');
 
+const quizDataGatherer = require('quizDataGatherer.js');
+const quizDataReducer = require('quizDataReducer.js');
+
+/*************************************************************************
+ * 
+ *************************************************************************/
 function getInputs() {
-    fs.readFile('./Winter2019onlineScaledCoursesGroupReport_1547062079627.csv', 'utf8', function read(err, data) {
-        if (err) {
-            throw err;
+    function getInputViaCsv(file) {
+        if (path.extname(file) !== '.csv') {
+            throw new Error ('File Input not a CSV!');
+        } else {
+            let courseListString = fs.readFileSync(file, 'utf8');
+            let courseListObject = d3.csvParse(courseListString);
+            return courseListObject;
         }
-        let csv = d3.csvParse(data);
-        console.log(csv);
-    });
+    }
+    // Take whatever is on the command line, else this thing
+    let fileLocation = process.argv[4] || 'Winter2019onlineScaledCoursesGroupReport_1547062079627';
+    // Get Courses to Search
+    let courseListObject = getInputViaCsv(fileLocation);
+    // Set Keys
+    let key1 = process.argv[2];
+    let key2 = process.argv[3];
 
-     /* User Username */
-     enquirer.question('key1', 'Key1:', {
-        errorMessage: 'Cannot be blank!',
-        validate: (input) => {
-            return input != undefined;
-        },
-        when: (answers) => answers.postImport.includes('groups-bridge') || !process.argv.includes('-e')
-    });
-
-    /* User Password */
-    enquirer.question('key2', 'Key2:', {
-        errorMessage: 'Cannot be blank!',
-        validate: (input) => {
-            return input != undefined;
-        },
-        when: (answers) => answers.postImport.includes('groups-bridge') || !process.argv.includes('-e')
-    });
-
-    /* Check env variable before asking for user credentials */
-    // if (!process.env.KEY1)
-    //     await enquirer.ask('key1');
-    // else
-    //     enquirer.answers.key1 = process.env.KEY1;
-
-    // if (!process.env.KEY2)
-    //     await enquirer.ask('key2');
-    // else
-    //     enquirer.answers.key2 = process.env.KEY2;
+    return {
+        courseList: courseListObject,
+        key1: key1,
+        key2: key2
+    };
 }
 
+/*************************************************************************
+ * 
+ *************************************************************************/
+function output() {}
+
+
+/*************************************************************************
+ * 
+ *************************************************************************/
 function main() {
     var input = getInputs();
-    var quizData = promiseQueueLimiter
+    var quizData = promiseQueueLimiter (input.courseList, );
 }
 
 main();
