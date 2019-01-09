@@ -2,9 +2,9 @@ const d3 = require('d3-dsv');
 const fs = require('fs');
 const path = require('path');
 
-const quizDataGatherer = require('quizDataGatherer.js');
-// const quizDataReducer = require('quizDataReducer.js');
-const promiseQueueLimit = require('promiseQUeueLimit.js');
+const quizDataGatherer = require('./quizDataGatherer.js');
+// const quizDataReducer = require('./quizDataReducer.js');
+const promiseQueueLimit = require('./promiseQUeueLimit.js');
 
 let queueLimit = 50;
 
@@ -22,7 +22,7 @@ function getInputs() {
         }
     }
     // Take whatever is on the command line, else this thing
-    let fileLocation = process.argv[4] || 'Winter2019onlineScaledCoursesGroupReport_1547062079627';
+    let fileLocation = process.argv[4] || 'Winter2019onlineScaledCoursesGroupReport_1547062079627.csv';
     // Get Courses to Search
     let courseListObject = getInputViaCsv(fileLocation);
     // Set Keys
