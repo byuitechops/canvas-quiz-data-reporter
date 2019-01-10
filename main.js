@@ -18,6 +18,7 @@ function getInputs() {
         } else {
             let courseListString = fs.readFileSync(file, 'utf8');
             let courseListObject = d3.csvParse(courseListString);
+            delete courseListObject.columns;
             return courseListObject;
         }
     }
@@ -25,10 +26,10 @@ function getInputs() {
     let fileLocation = process.argv[4] || 'Winter2019onlineScaledCoursesGroupReport_1547062079627.csv';
     // Get Courses to Search
     let courseListObject = getInputViaCsv(fileLocation);
-    // Set Keys
+    // Set Key
     let key1 = process.argv[2];
     let key2 = process.argv[3];
-
+    
     return {
         courseList: courseListObject,
         key1: key1,
@@ -49,8 +50,12 @@ function output() {
  *************************************************************************/
 function main() {
     var input = getInputs();
-    var queueLimiterAdapter = (key1, key2) => async (course) => Promise.resolve ( quizDataGatherer(course.id, key1, key2) );
-    promiseQueueLimit ( input.courseList, queueLimiterAdapter(input.key1, input.key2), queueLimit, (err, data) => console.log(data) );
+    var queueLimiterAdapter = (key1, key2) => {
+        return async (course) => {
+            return Promise.resolve ( quizDataGatherer(course.id, key1, key2) );
+        };
+    };
+    promiseQueueLimit ( input.courseList, queueLimiterAdapter(input.key1, input.key2), queueLimit, (err, data) => /* console.log(data) */'' );
 }
 
 main();

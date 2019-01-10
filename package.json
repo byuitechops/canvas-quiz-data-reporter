@@ -22,6 +22,8 @@
   },
   "homepage": "https://github.com/byuitechops/canvas-quiz-data-reporter#readme",
   "dependencies": {
+    "canvas-api-wrapper": "^3.3.5",
+    "canvas-question-banks": "git+https://git@github.com/byuitechops/canvas-question-banks.git",
     "d3-dsv": "^1.0.10"
   }
 }
