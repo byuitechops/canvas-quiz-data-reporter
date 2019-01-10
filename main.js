@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const quizDataGatherer = require('./quizDataGatherer.js');
-// const quizDataReducer = require('./quizDataReducer.js');
+const quizDataReducer = require('./quizDataReducer.js');
 const promiseQueueLimit = require('./promiseQUeueLimit.js');
 
 let queueLimit = 50;
@@ -40,22 +40,31 @@ function getInputs() {
 /*************************************************************************
  * 
  *************************************************************************/
-function output() {
-
+function output(data) {
+    var outputData = JSON.stringify(data, null, 4);
+    fs.writeFileSync('./THEIMPORTANTTHING.json', outputData);
 }
 
+var queueLimiterAdapter = (key1, key2) => {
+    return async (course) => {
+        return Promise.resolve(quizDataGatherer(course.id, key1, key2));
+    };
+};
+
+function queueLimiterCallback(err, data) {
+    console.log(data);
+    // SETH TODO Write the QuizDataReducer Function the best you can with what we discussed AFTER finishing TODOs in quizDataGatherer.js
+    var reducedQuizData = quizDataReducer(data);
+    output(reducedQuizData);
+}
 
 /*************************************************************************
  * 
  *************************************************************************/
 function main() {
     var input = getInputs();
-    var queueLimiterAdapter = (key1, key2) => {
-        return async (course) => {
-            return Promise.resolve ( quizDataGatherer(course.id, key1, key2) );
-        };
-    };
-    promiseQueueLimit ( input.courseList, queueLimiterAdapter(input.key1, input.key2), queueLimit, (err, data) => /* console.log(data) */'' );
+    promiseQueueLimit ( input.courseList, queueLimiterAdapter(input.key1, input.key2), queueLimit, queueLimiterCallback );
+
 }
 
 main();
