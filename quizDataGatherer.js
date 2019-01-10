@@ -32,6 +32,9 @@ async function searchQuizBanks (courseId, key1, key2) {
  *************************************************************************/
 async function searchCanvasQuizzes (courseId) {
     // SETH TODO Make API Calls to Canvas to get quizzes and associated quiz questions
+    const course = canvas.getCourse(courseId);
+    const quizzes = await course.quizzes.getComplete();
+    console.log(quizzes);
     return courseId;
 }
 
