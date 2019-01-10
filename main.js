@@ -27,9 +27,9 @@ function getInputs() {
     // Get Courses to Search
     let courseListObject = getInputViaCsv(fileLocation);
     // Set Key
-    let key1 = process.argv[2];
-    let key2 = process.argv[3];
-    
+    let key1 = process.argv[2] || process.env.CANVAS_SESSION;
+    let key2 = process.argv[3] || process.env._CSRF_TOKEN;
+
     return {
         courseList: courseListObject,
         key1: key1,
