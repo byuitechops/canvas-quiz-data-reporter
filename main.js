@@ -23,12 +23,12 @@ function getInputs() {
         }
     }
     // Take whatever is on the command line, else this thing
-    let fileLocation = process.argv[4] || 'Winter2019onlineScaledCoursesGroupReport_1547062079627.csv';
+    let fileLocation = process.argv[2] || path.resolve('./test.csv') || './Winter2019onlineScaledCoursesGroupReport_1547062079627.csv';
     // Get Courses to Search
     let courseListObject = getInputViaCsv(fileLocation);
     // Set Key
-    let key1 = process.argv[2] || process.env.CANVAS_SESSION;
-    let key2 = process.argv[3] || process.env._CSRF_TOKEN;
+    let key1 = process.argv[3] || process.env.CANVAS_SESSION;
+    let key2 = process.argv[4] || process.env._CSRF_TOKEN;
 
     return {
         courseList: courseListObject,
@@ -40,20 +40,24 @@ function getInputs() {
 /*************************************************************************
  * 
  *************************************************************************/
-function output(data) {
-    var outputData = JSON.stringify(data, null, 4);
+function output(courseData) {
+    var outputData = JSON.stringify(courseData, null, 4);
     fs.writeFileSync('./THEIMPORTANTTHING.json', outputData);
 }
 
-var queueLimiterAdapter = (key1, key2) => {
-    return async (course) => {
-        return Promise.resolve(quizDataGatherer(course.id, key1, key2));
+function queueLimiterAdapter (key1, key2, queueLength) {
+    return async function runner (course) {
+        return Promise.resolve(quizDataGatherer(course.id, key1, key2))
+            .then( (data) => {
+                if (queueLength !== null || queueLength !== undefined)
+                    console.log(`${++queueLimiterAdapter.numberCompleted}/${queueLength}, ${course['name']} Completed`);
+                return data;
+            } );
     };
-};
+}
+queueLimiterAdapter.numberCompleted = 0;
 
 function queueLimiterCallback(err, data) {
-    console.log(data);
-    // SETH TODO Write the QuizDataReducer Function the best you can with what we discussed AFTER finishing TODOs in quizDataGatherer.js
     var reducedQuizData = quizDataReducer(data);
     output(reducedQuizData);
 }
@@ -63,7 +67,7 @@ function queueLimiterCallback(err, data) {
  *************************************************************************/
 function main() {
     var input = getInputs();
-    promiseQueueLimit ( input.courseList, queueLimiterAdapter(input.key1, input.key2), queueLimit, queueLimiterCallback );
+    promiseQueueLimit ( input.courseList, queueLimiterAdapter(input.key1, input.key2, input.courseList.length), queueLimit, queueLimiterCallback );
 
 }
 
