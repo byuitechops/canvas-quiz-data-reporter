@@ -26,40 +26,49 @@ function getInputs() {
     let fileLocation = process.argv[2] || path.resolve('./test.csv') || './Winter2019onlineScaledCoursesGroupReport_1547062079627.csv';
     // Get Courses to Search
     let courseListObject = getInputViaCsv(fileLocation);
-    // Set Key
-    let key1 = process.argv[3] || process.env.CANVAS_SESSION;
-    let key2 = process.argv[4] || process.env._CSRF_TOKEN;
+    // Set Cookies / Keys
+    let canvasSessionKey = process.argv[3] || process.env.CANVAS_SESSION || null;
+    let csrfTokenKey = process.argv[4] || process.env._CSRF_TOKEN || null;
 
     return {
         courseList: courseListObject,
-        key1: key1,
-        key2: key2
+        canvasSessionKey: canvasSessionKey,
+        csrfTokenKey: csrfTokenKey
     };
 }
 
 /*************************************************************************
  * 
  *************************************************************************/
-function output(courseData) {
-    var outputData = JSON.stringify(courseData, null, 4);
+function output(courseQuizData) {
+    var outputData = JSON.stringify(courseQuizData, null, 4);
     fs.writeFileSync('./THEIMPORTANTTHING.json', outputData);
 }
 
-function queueLimiterAdapter (key1, key2, queueLength) {
+function queueLimiterAdapter (canvasSessionKey, csrfTokenKey, queueLength) {
     return async function runner (course) {
-        return Promise.resolve(quizDataGatherer(course.id, key1, key2))
-            .then( (data) => {
+        return Promise.resolve(quizDataGatherer(course.id, canvasSessionKey, csrfTokenKey))
+            .then( (quizData) => {
                 if (queueLength !== null || queueLength !== undefined)
                     console.log(`${++queueLimiterAdapter.numberCompleted}/${queueLength}, ${course['name']} Completed`);
-                return data;
+                quizData.courseData = course;
+                return quizData;
             } );
     };
 }
 queueLimiterAdapter.numberCompleted = 0;
 
-function queueLimiterCallback(err, data) {
-    var reducedQuizData = quizDataReducer(data);
-    output(reducedQuizData);
+function queueLimiterCallback(err, courseQuizData) {
+    try {
+        debugger;
+        var quizData = courseQuizData.map( (course) => {
+            return quizDataReducer(courseQuizData);
+        } );
+    } catch (e) {
+        console.error('something failed during data transformation')
+        console.error(e)
+    }
+    output(quizData);
 }
 
 /*************************************************************************
@@ -67,7 +76,7 @@ function queueLimiterCallback(err, data) {
  *************************************************************************/
 function main() {
     var input = getInputs();
-    promiseQueueLimit ( input.courseList, queueLimiterAdapter(input.key1, input.key2, input.courseList.length), queueLimit, queueLimiterCallback );
+    promiseQueueLimit(input.courseList, queueLimiterAdapter(input.canvasSessionKey, input.csrfTokenKey, input.courseList.length), queueLimit, queueLimiterCallback );
 
 }
 

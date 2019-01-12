@@ -1,32 +1,50 @@
 
-function quizDataReducer (courseData) {
-    // SETH TODO Write this function to the best you can AFTER finishing TODOs in quizDataGatherer.js
-    reducedQuestions = courseData.map((course) => {
-        let allQuestions = {
-            questionBank: [],
-            canvasQuiz: []
-        };
-        //console.log(course.canvasQuiz);
-        //allQuestions.questionBank = questionBankReader(course.questionBank);
-        allQuestions.canvasQuiz = canvasQuizReader(course.canvasQuiz);
-        return allQuestions;
-    });
-    return reducedQuestions;
+function quizDataReducer (quizData) {
+    quizData = quizDataTransformer (quizData);
+    return quizData;
 }
 
-function questionBankReader(questionBank) {
-
-    return questions;
+function quizDataTransformer (quizData) {
+    var questionBanks = quizData.questionBanks;
+    var canvasQuizzes = quizData.canvasQuizzes;
+    var courseData = {
+        course_id: (() => quizData.courseData.id || null )(),
+        course_name: (() => quizData.courseData.name || null )(),
+        course_html_url: (() => quizData.courseData.html_url || quizData.courseData.url || this.course_id ? `https://byui.instructure.com/courses/${this.course_id}` : null )()
+    }
+    questionBanks = questionBanks.map ( (questionBank) => prepareQuestionBank(questionBank, courseData) );
+    courseData.quizAndBankData = [];
+    courseData.quizAndBankData = courseData.quizAndBankData.concat( formatQuizAndBankData(questionBanks, 'bank' ) );
+    courseData.quizAndBankData = courseData.quizAndBankData.concat( formatQuizAndBankData(canvasQuizzes, 'quiz' ) );
 }
 
-function canvasQuizReader(canvasQuiz) {
-    var questions = [];
-    //doesn't work, dunno why. M'tired.
-    canvasQuiz.foreach((quiz) => {
-        questions.push(quiz.byuiQuestions);
-    });
-    console.log(questions);
-    return questions;
+function formatQuizAndBankData (qbData, type) {
+    return {
+        quizBank_type: type,
+        quizBank_id: qbData.id,
+        quizBank_title: qbData.title,
+        quizBank_html_url: qbData.html_url,
+        questionData: ( () => qbData._questions.map( (question) => questionFormatter(question) ) )()
+    }
 }
+
+function questionFormatter (question) {
+    return {
+        question_id: question.id,
+        question_name: question.name,
+        question_type: question.type,
+        question_text: question.text,
+        question_answers: question.answers,
+        question_matches: question.matches,
+        question_matching_answer_incorrect_matches: question.matching_answer_incorrect_matches,
+    }
+}
+
+function prepareQuestionBank (questionBank, courseData) {
+    questionBank.html_url = `https://byui.instructure.com/courses/${courseData.course_id}/question_banks/${questionBank.id}`;
+    return questionBank;
+}
+
+// function prepareCanvasQuiz () {}
 
 module.exports = quizDataReducer;
