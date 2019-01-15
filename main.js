@@ -62,7 +62,7 @@ function queueLimiterCallback(err, courseQuizData) {
     try {
         debugger;
         var quizData = courseQuizData.map( (course) => {
-            return quizDataReducer(courseQuizData);
+            return quizDataReducer(course);
         } );
     } catch (e) {
         console.error('something failed during data transformation')

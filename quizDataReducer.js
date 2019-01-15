@@ -1,50 +1,86 @@
 
-function quizDataReducer (quizData) {
-    quizData = quizDataTransformer (quizData);
-    return quizData;
+function mainQuizDataReducer (quizzesData) {
+    quizzesData = quizDataTransformer (quizzesData);
+    // console.dir(quizzesData)
+    // quizzesData = quizDataReducer(quizzesData);
+    return quizzesData;
 }
 
-function quizDataTransformer (quizData) {
-    var questionBanks = quizData.questionBanks;
-    var canvasQuizzes = quizData.canvasQuizzes;
-    var courseData = {
-        course_id: (() => quizData.courseData.id || null )(),
-        course_name: (() => quizData.courseData.name || null )(),
-        course_html_url: (() => quizData.courseData.html_url || quizData.courseData.url || this.course_id ? `https://byui.instructure.com/courses/${this.course_id}` : null )()
+function quizDataTransformer (quizzesData) {
+    var canvasQuizzes = quizzesData.canvasQuizzes;
+    var questionBanks = quizzesData.questionBanks;
+    var courseData = quizzesData.courseData;
+    questionBanks = questionBanks.map((questionBank) => prepareQuestionBank(questionBank, courseData.id) );
+    
+    var outputCourseData = {
+        course_id: (() => courseData.id || null )(),
+        course_name: (() => courseData.name || null )(),
+        course_html_url: (() => courseData.html_url || courseData.url || courseData.id ? `https://byui.instructure.com/courses/${courseData.id}` : null )(),
+        course_quizzes_banks: [].concat( quizAndBankDataFormatter(questionBanks, 'bank'), quizAndBankDataFormatter(canvasQuizzes, 'quiz') ) || null
     }
-    questionBanks = questionBanks.map ( (questionBank) => prepareQuestionBank(questionBank, courseData) );
-    courseData.quizAndBankData = [];
-    courseData.quizAndBankData = courseData.quizAndBankData.concat( formatQuizAndBankData(questionBanks, 'bank' ) );
-    courseData.quizAndBankData = courseData.quizAndBankData.concat( formatQuizAndBankData(canvasQuizzes, 'quiz' ) );
-}
+    
+    return outputCourseData;
 
-function formatQuizAndBankData (qbData, type) {
-    return {
-        quizBank_type: type,
-        quizBank_id: qbData.id,
-        quizBank_title: qbData.title,
-        quizBank_html_url: qbData.html_url,
-        questionData: ( () => qbData._questions.map( (question) => questionFormatter(question) ) )()
+    function quizAndBankDataFormatter (qbData, type) {
+            return qbData.map ( ( quizOrBank ) => {
+                return {
+                    quiz_bank_type: type || null,
+                    quiz_bank_id: quizOrBank.id || null,
+                    quiz_bank_title: quizOrBank.title || null,
+                    quiz_bank_html_url: quizOrBank.html_url || null,
+                    quiz_bank_questions: (() => quizOrBank._questions.map( (question) => questionFormatter(question) ) )() || null
+                }
+            } );
+    }
+    
+    function questionFormatter (question) {
+            return {
+                question_id: question.id || null,
+                question_name: question.question_name || null,
+                question_type: question.question_type || null,
+                question_text: question.question_text || null,
+                question_answers: question.answers || null,
+                question_matches: question.matches || null,
+                question_matching_answer_incorrect_matches: question.matching_answer_incorrect_matches || null,
+            }
+    }
+    
+    function prepareQuestionBank (questionBank, courseId) {
+            questionBank.html_url = `https://byui.instructure.com/courses/${courseId}/question_banks/${questionBank.id}` || null;
+            return questionBank;
     }
 }
 
-function questionFormatter (question) {
-    return {
-        question_id: question.id,
-        question_name: question.name,
-        question_type: question.type,
-        question_text: question.text,
-        question_answers: question.answers,
-        question_matches: question.matches,
-        question_matching_answer_incorrect_matches: question.matching_answer_incorrect_matches,
+
+function quizDataReducer (quizzesData) {
+    quizzesData.course_quizzes_banks = quizzesData.course_quizzes_banks.forEach ( (quiz) => {
+        quiz.quiz_bank_questions = quiz.quiz_bank_questions
+            .reduce(filterToMatchingQuestions, [])
+            .reduce(findBlanksInMatchQuestions, []);
+    });
+    return quizzesData;
+
+    function filterToMatchingQuestions (questionAcc, question) {
+        if (question.question_type === 'matching_question')
+            questionAcc.push(question)
+        return questionAcc
+    }
+
+    function findBlanksInMatchQuestions(questionAcc, question) {
+        if (searchKeysForBlanks())
+            questionAcc.push(question)
+        return questionAcc
+
+        function searchKeysForBlanks () {
+            let blankTests = [
+                RegExp(/^[\s\n\t]+$/, 'i'),
+                RegExp(/\n/, 'i'),
+                RegExp(/\t/, 'i'),
+                RegExp(/\ufeff/, 'i'),
+            ];
+            return true;
+        }
     }
 }
 
-function prepareQuestionBank (questionBank, courseData) {
-    questionBank.html_url = `https://byui.instructure.com/courses/${courseData.course_id}/question_banks/${questionBank.id}`;
-    return questionBank;
-}
-
-// function prepareCanvasQuiz () {}
-
-module.exports = quizDataReducer;
+module.exports = mainQuizDataReducer;
