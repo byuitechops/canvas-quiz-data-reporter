@@ -75,7 +75,7 @@ function quizDataReducer (courseQuizzesData) {
             ...question.question_answers.map ((answer) => populateBlanks( answer, ['text', 'left', 'right'])),
             ...question.question_matches.map ((match) => populateBlanks( match, ['text'])),
             );
-            console.log(valuesToCheck)
+            // console.log(valuesToCheck)
         if ( blanksAreFound (valuesToCheck) )
             questionAcc.push(question);
         return questionAcc;
