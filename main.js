@@ -60,10 +60,12 @@ queueLimiterAdapter.numberCompleted = 0;
 
 function queueLimiterCallback(err, courseQuizData) {
     try {
-        debugger;
-        var quizData = courseQuizData.map( (course) => {
-            return quizDataReducer(course);
-        } );
+        var quizData = courseQuizData.reduce( (quizzesAcc, quizzesData) => {
+            quizzesData = quizDataReducer(quizzesData);
+            if (quizzesData.course_quizzes_banks.length > 0)
+                quizzesAcc = quizzesAcc.concat(quizzesData);
+            return quizzesAcc;
+        }, [] );
     } catch (e) {
         console.error('something failed during data transformation')
         console.error(e)

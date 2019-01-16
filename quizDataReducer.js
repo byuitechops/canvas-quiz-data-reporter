@@ -1,9 +1,8 @@
 
-function mainQuizDataReducer (quizzesData) {
-    quizzesData = quizDataTransformer (quizzesData);
-    // console.dir(quizzesData)
-    // quizzesData = quizDataReducer(quizzesData);
-    return quizzesData;
+function mainQuizDataReducer (courseQuizzesData) {
+    courseQuizzesData = quizDataTransformer (courseQuizzesData);
+    courseQuizzesData = quizDataReducer(courseQuizzesData);
+    return courseQuizzesData;
 }
 
 function quizDataTransformer (quizzesData) {
@@ -52,33 +51,44 @@ function quizDataTransformer (quizzesData) {
 }
 
 
-function quizDataReducer (quizzesData) {
-    quizzesData.course_quizzes_banks = quizzesData.course_quizzes_banks.forEach ( (quiz) => {
-        quiz.quiz_bank_questions = quiz.quiz_bank_questions
-            .reduce(filterToMatchingQuestions, [])
-            .reduce(findBlanksInMatchQuestions, []);
-    });
-    return quizzesData;
+function quizDataReducer (courseQuizzesData) {
+    courseQuizzesData.course_quizzes_banks = courseQuizzesData.course_quizzes_banks
+        .reduce( (quizAcc, quiz) => {
+            let quizOutput = Object.assign({}, quiz);
+            quizOutput.quiz_bank_questions = quizOutput.quiz_bank_questions.reduce(filterToMatchingQuestions, []);
+            quizOutput.quiz_bank_questions = quizOutput.quiz_bank_questions.reduce(findBlanksInMatchQuestions, []);
+            if (quizOutput.quiz_bank_questions.length > 0)
+                quizAcc.push(quizOutput);
+            return quizAcc;
+        }, [])
+    return courseQuizzesData;
 
     function filterToMatchingQuestions (questionAcc, question) {
         if (question.question_type === 'matching_question')
-            questionAcc.push(question)
-        return questionAcc
+            questionAcc.push(question);
+        return questionAcc;
     }
 
     function findBlanksInMatchQuestions(questionAcc, question) {
-        if (searchKeysForBlanks())
-            questionAcc.push(question)
-        return questionAcc
+        let valuesToCheck = [].concat(
+            question.question_text,
+            ...question.question_answers.map ((answer) => populateBlanks( answer, ['text', 'left', 'right'])),
+            ...question.question_matches.map ((match) => populateBlanks( match, ['text'])),
+            );
+            console.log(valuesToCheck)
+        if ( blanksAreFound (valuesToCheck) )
+            questionAcc.push(question);
+        return questionAcc;
 
-        function searchKeysForBlanks () {
-            let blankTests = [
-                RegExp(/^[\s\n\t]+$/, 'i'),
-                RegExp(/\n/, 'i'),
-                RegExp(/\t/, 'i'),
-                RegExp(/\ufeff/, 'i'),
-            ];
-            return true;
+        function populateBlanks (objectToReference, keyToCheck) {
+            return keyToCheck.map (key => {
+                return objectToReference[key];
+            });
+        }
+
+        function blanksAreFound (valuesToCheck) {
+            let blanksTest = new RegExp(/^[\n\s\t\ufeff]+$/, 'gi');
+            return valuesToCheck.some(value => blanksTest.test(value) || value === null || value === '' || value === undefined);
         }
     }
 }
