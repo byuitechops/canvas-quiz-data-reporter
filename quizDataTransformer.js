@@ -16,11 +16,11 @@ function quizDataTransformer(quizzesData) {
     function quizAndBankDataFormatter(qbData, type) {
         return qbData.map((quizOrBank) => {
             return {
-                quiz_bank_type: type || null,
-                quiz_bank_id: quizOrBank.id || null,
-                quiz_bank_title: quizOrBank.title || null,
-                quiz_bank_html_url: quizOrBank.html_url || null,
-                quiz_bank_questions: (() => quizOrBank._questions.map((question) => questionFormatter(question)))() || null
+                quizOrBank_type: type || null,
+                quizOrBank_id: quizOrBank.id || null,
+                quizOrBank_title: quizOrBank.title || null,
+                quizOrBank_html_url: quizOrBank.html_url || null,
+                quizOrBank_questions: (() => quizOrBank._questions.map((question) => questionFormatter(question)))() || null
             }
         });
     }

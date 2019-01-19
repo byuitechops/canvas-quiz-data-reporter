@@ -4,6 +4,7 @@ const path = require('path');
 
 const quizDataGatherer = require('./quizDataGatherer.js');
 const quizDataTransformer = require('./quizDataTransformer.js');
+const quizDataFlattener = require('./quizDataFlattener.js');
 const quizDataReducer = require('./quizDataReducer.js');
 const promiseQueueLimit = require('./promiseQueueLimit.js');
 
@@ -67,11 +68,11 @@ queueLimiterAdapter.numberCompleted = 0;
  * The task to run after the async logic of the program has finished.
  * Callback style function required to work with promiseQueueLimiter params.
  *************************************************************************/
-function queueLimiterCallback(err, courseQuizData) {
+function queueLimiterCallback(err, courseQuizzesData) {
     console.log('DATA GATHERING COMPLETE. DATA REDUCTION BEGINNING...')
     // Sever error report from successes report.
     try {
-        var errorReport = courseQuizData.reduce((acc, courseReport) => {
+        var errorReport = courseQuizzesData.reduce((acc, courseReport) => {
             if (courseReport.errors.length > 0) {
                 acc.push({
                     courseInfo: courseReport.courseData,
@@ -86,24 +87,20 @@ function queueLimiterCallback(err, courseQuizData) {
     }
     // Shave Quiz and Question data to contain only info deemed worthy to keep
     try {
-        var quizDataPostTransformation = courseQuizData.map(quizzesData => {
+        var quizzesData = courseQuizzesData.map(quizzesData => {
             let transformedData = quizDataTransformer(quizzesData);
             return transformedData;
         });
-        output(quizDataPostTransformation, 'MAIN-REPORT-PREREDUCTION');
-        var quizDataPostReduction = quizDataPostTransformation.reduce((quizzesAcc, quizzesData) => {
-            quizzesData = quizDataReducer(quizzesData);
-            if (quizzesData.course_quizzes_banks.length > 0)
-                quizzesAcc = quizzesAcc.concat(quizzesData);
-            return quizzesAcc;
-        }, []);
-        output(quizDataPostReduction, 'MAIN-REPORT-OUTPUT');
+        var questionsData = quizDataFlattener(quizzesData);
+        reducedQuestionsData = quizDataReducer(questionsData);
     } catch (e) {
-        console.error('something failed during data transformation')
-        console.error(e)
+        console.error('something failed during data transformation');
+        console.error(e);
     }
     // Output main report and error report
     console.log('PREPARING TO WRITE FILES...');
+    output(reducedQuestionsData, 'MAIN-REPORT-OUTPUT');
+
 }
 
 /*************************************************************************
