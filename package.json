@@ -24,6 +24,7 @@
   "dependencies": {
     "canvas-api-wrapper": "^3.3.5",
     "canvas-question-banks": "git+https://git@github.com/byuitechops/canvas-question-banks.git",
+    "cheerio": "^1.0.0-rc.2",
     "d3-dsv": "^1.0.10"
   }
 }

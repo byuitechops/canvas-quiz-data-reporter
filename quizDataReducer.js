@@ -2,9 +2,10 @@
  *
  *************************************************************************/
 function quizDataReducer(questionsData) {
-    var output = questionsData.reduce(filterToMatchingQuestions, []);
-    // blankQuestions = matchingQuestions.reduce(findBlanksInMatchQuestions, [])
-    return output;
+    var matchingQuestions = questionsData.reduce(filterToMatchingQuestions, []);
+    var blankMatchingQuestions = matchingQuestions.reduce(findBlanksInMatchQuestions, [])
+    // var blankMatchingQuestions = matchingQuestions;
+    return blankMatchingQuestions;
 }
 /****************************************************************
 * 
@@ -19,7 +20,7 @@ function filterToMatchingQuestions(questionAcc, question) {
 *****************************************************************/
 function findBlanksInMatchQuestions(questionAcc, question) {
     let valuesToCheck = [].concat(
-        question.question_text,
+        // question.question_text,
         ...question.question_answers.map((answer) => populateBlanks(answer, ['text', 'left', 'right'])),
         ...question.question_matches.map((match) => populateBlanks(match, ['text'])),
     );
@@ -27,6 +28,7 @@ function findBlanksInMatchQuestions(questionAcc, question) {
     if (blanksAreFound(valuesToCheck))
         questionAcc.push(question);
     return questionAcc;
+
     /*******************************************************
     *
     ********************************************************/

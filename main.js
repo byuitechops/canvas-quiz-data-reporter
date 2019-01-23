@@ -1,4 +1,5 @@
 const d3 = require('d3-dsv');
+const cheerio = require('cheerio');
 const fs = require('fs');
 const path = require('path');
 
@@ -25,7 +26,7 @@ function getInputs() {
         }
     }
     // Take whatever is on the command line, else this thing
-    let fileLocation = process.argv[2] || path.resolve('./test.csv') || path.resolve('./Winter2019onlineScaledCoursesGroupReport_1547062079627.csv');
+    let fileLocation = process.argv[2] || path.resolve('./Winter2019onlineScaledCoursesGroupReport_1547062079627.csv');
     // Get Courses to Search
     let courseListObject = getInputViaCsv(fileLocation);
     // Set Cookies / Keys
@@ -42,9 +43,48 @@ function getInputs() {
 /*************************************************************************
  * Writes JSON
  *************************************************************************/
-function output(courseQuizData, filename) {
+function outputJson(courseQuizData, filename) {
     var outputData = JSON.stringify(courseQuizData, null, 4);
     fs.writeFileSync(`./${filename}.json`, outputData);
+}
+
+/*************************************************************************
+ * Writes CSV
+ *************************************************************************/
+function outputCsv(courseData, filename) {
+    var keysToKeep = [
+        "course_id",
+        "course_name",
+        "course_html_url",
+        "quizOrBank_type",
+        "quizOrBank_id",
+        "quizOrBank_title",
+        "quizOrBank_html_url",
+        "question_name",
+        "question_type",
+        "question_text",
+    ];
+    courseQuizData = Object.assign(courseData);
+    var courseDataCsv = courseQuizData.map(csvPrepDeepStringify)
+    var outputData = d3.csvFormat(courseDataCsv, keysToKeep)
+    fs.writeFileSync(`./${filename}.csv`, outputData);
+    return;
+
+    function csvPrepDeepStringify(question) {
+        for (let key in question) {
+            if (typeof question[key] === 'object')
+                question[key] = JSON.stringify(question[key]);
+        }
+        question.question_text = convertHtmlToText(question.question_text);
+        return question;
+    }
+
+    function convertHtmlToText(html) {
+        const $ = cheerio.load(html);
+        var text = $.text();
+        text = text.replace(/\n/g, '\\n')
+        return text;
+    }
 }
 
 /*************************************************************************
@@ -81,7 +121,7 @@ function queueLimiterCallback(err, courseQuizzesData) {
             }
             return acc;
         }, [])
-        output(errorReport, 'MAIN-REPORT-ERRRRS');
+        outputJson(errorReport, 'MAIN-REPORT-ERRRRS');
     } catch (e) {
         console.log(e)
     }
@@ -99,7 +139,8 @@ function queueLimiterCallback(err, courseQuizzesData) {
     }
     // Output main report and error report
     console.log('PREPARING TO WRITE FILES...');
-    output(reducedQuestionsData, 'MAIN-REPORT-OUTPUT');
+    outputJson(reducedQuestionsData, 'MAIN-REPORT-OUTPUT');
+    outputCsv(reducedQuestionsData, 'MAIN-REPORT-OUTPUT');
 
 }
 
