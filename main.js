@@ -65,12 +65,12 @@ function outputCsv(courseData, filename) {
         "question_text",
     ];
     courseQuizData = Object.assign(courseData);
-    var courseDataCsv = courseQuizData.map(csvPrepDeepStringify)
+    var courseDataCsv = courseQuizData.map(csvPrepFields)
     var outputData = d3.csvFormat(courseDataCsv, keysToKeep)
     fs.writeFileSync(`./${filename}.csv`, outputData);
     return;
 
-    function csvPrepDeepStringify(question) {
+    function csvPrepFields(question) {
         for (let key in question) {
             if (typeof question[key] === 'object')
                 question[key] = JSON.stringify(question[key]);
@@ -105,44 +105,68 @@ function queueLimiterAdapter(canvasSessionKey, csrfTokenKey, queueLength) {
 queueLimiterAdapter.numberCompleted = 0;
 
 /*************************************************************************
- * The task to run after the async logic of the program has finished.
- * Callback style function required to work with promiseQueueLimiter params.
- *************************************************************************/
+* The task to run after the async logic of the program has finished.
+* Callback style function required to work with promiseQueueLimiter params.
+*************************************************************************/
 function queueLimiterCallback(err, courseQuizzesData) {
     console.log('DATA GATHERING COMPLETE. DATA REDUCTION BEGINNING...')
-    // Sever error report from successes report.
-    try {
-        var errorReport = courseQuizzesData.reduce((acc, courseReport) => {
-            if (courseReport.errors.length > 0) {
-                acc.push({
-                    courseInfo: courseReport.courseData,
-                    courseErrorInfo: courseReport.errors,
-                });
-            }
-            return acc;
-        }, [])
-        outputJson(errorReport, 'MAIN-REPORT-ERRRRS');
-    } catch (e) {
-        console.log(e)
-    }
-    // Shave Quiz and Question data to contain only info deemed worthy to keep
-    try {
-        var quizzesData = courseQuizzesData.map(quizzesData => {
-            let transformedData = quizDataTransformer(quizzesData);
-            return transformedData;
-        });
-        var questionsData = quizDataFlattener(quizzesData);
-        reducedQuestionsData = quizDataReducer(questionsData);
-    } catch (e) {
-        console.error('something failed during data transformation');
-        console.error(e);
-    }
+    let errorReport = generateErrorReport(courseQuizzesData); // Generate error report 
+    let reformedQuizData = reformatQuizData(courseQuizzesData); // Shave Quiz and Question data to contain only info deemed worthy to keep
+    let reducedQuestionsData = muiltiQuizReducer(reformedQuizData); // 
     // Output main report and error report
     console.log('PREPARING TO WRITE FILES...');
     outputJson(reducedQuestionsData, 'MAIN-REPORT-OUTPUT');
+    outputJson(errorReport, 'MAIN-REPORT-ERRRRS');
     outputCsv(reducedQuestionsData, 'MAIN-REPORT-OUTPUT');
+    return;
 
+    function generateErrorReport(courseData) {
+        try {
+            var errorReport = courseData.reduce((acc, courseReport) => {
+                if (courseReport.errors.length > 0) {
+                    acc.push({
+                        courseInfo: courseReport.courseData,
+                        courseErrorInfo: courseReport.errors,
+                    });
+                }
+                return acc;
+            }, [])
+            return errorReport;
+
+        } catch (e) {
+            console.log(e)
+        }
+    }
+
+    /***************************************************************
+     * Unifomrize Data, then flatten course data to question data  *
+     * meaning each each top level item is a question rather than  *
+     * a course                                                    *
+     ***************************************************************/
+    function reformatQuizData(courseData) {
+        try {
+            var quizzesData = courseData.map(quizzesData => {
+                let transformedData = quizDataTransformer(quizzesData); // Uniformize Data
+                return transformedData;
+            });
+            var questionsData = quizDataFlattener(quizzesData); // Flatten Uniformized Data
+            return questionsData;
+        } catch (e) {
+            console.error('something failed during data transformation');
+            console.error(e);
+        }
+    }
+
+    /***************************************************************
+     * Runs reduce on the question collection multiple times to    *
+     * generate collections of questions that meet a certain       *
+     * criteria, and groups those items by the search criteria.    *
+     ***************************************************************/
+    function muiltiQuizReducer(questionData) {
+        return quizDataReducer(questionData)
+    }
 }
+
 
 /*************************************************************************
  * 
@@ -150,6 +174,8 @@ function queueLimiterCallback(err, courseQuizzesData) {
 function main() {
     var input = getInputs();
     promiseQueueLimit(input.courseList, queueLimiterAdapter(input.canvasSessionKey, input.csrfTokenKey, input.courseList.length), queueLimit, queueLimiterCallback);
+    return;
+
 
 }
 
