@@ -1,3 +1,3 @@
-id,name
-80,Josh's Sandbox
-16762, Aaron's Sandbox
+id,name,code,sis
+80,Josh's Sandbox,CCT400,SISID FIELD TEST JOSH
+16762,Aaron's Sandbox,CCT101,SISID FIELD TEST AARON

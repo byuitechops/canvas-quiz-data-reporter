@@ -8,6 +8,7 @@ const quizDataTransformer = require('./quizDataTransformer.js');
 const quizDataFlattener = require('./quizDataFlattener.js');
 const quizDataReducer = require('./quizDataReducer.js');
 const promiseQueueLimit = require('./promiseQueueLimit.js');
+const deepSearch = require('./deepSearch.js');
 
 let queueLimit = 500;
 
@@ -54,7 +55,9 @@ function outputJson(courseQuizData, filename) {
 function outputCsv(courseData, filename) {
     var keysToKeep = [
         "course_id",
+        "course_code", // Dont have this field
         "course_name",
+        "course_sisid",
         "course_html_url",
         "quizOrBank_type",
         "quizOrBank_id",
@@ -62,10 +65,11 @@ function outputCsv(courseData, filename) {
         "quizOrBank_html_url",
         "question_name",
         "question_type",
+        "question_flagReason",
         "question_text",
     ];
-    courseQuizData = Object.assign(courseData);
-    var courseDataCsv = courseQuizData.map(csvPrepFields)
+    courseQuizData = new Array(...courseData);
+    var courseDataCsv = courseQuizData.map(csvPrepFields);
     var outputData = d3.csvFormat(courseDataCsv, keysToKeep)
     fs.writeFileSync(`./${filename}.csv`, outputData);
     return;
@@ -80,10 +84,14 @@ function outputCsv(courseData, filename) {
     }
 
     function convertHtmlToText(html) {
-        const $ = cheerio.load(html);
-        var text = $.text();
-        text = text.replace(/\n/g, '\\n')
-        return text;
+        try {
+            const $ = cheerio.load(html);
+            var text = $.text();
+            text = text.replace(/\n/g, '\\n')
+            return text;
+        } catch (e) {
+            return html;
+        }
     }
 }
 
@@ -112,14 +120,24 @@ function queueLimiterCallback(err, courseQuizzesData) {
     console.log('DATA GATHERING COMPLETE. DATA REDUCTION BEGINNING...')
     let errorReport = generateErrorReport(courseQuizzesData); // Generate error report 
     let reformedQuizData = reformatQuizData(courseQuizzesData); // Shave Quiz and Question data to contain only info deemed worthy to keep
-    let reducedQuestionsData = muiltiQuizReducer(reformedQuizData); // 
+    try {
+        var reducedQuestionsData = muiltiQuizReducer(reformedQuizData); // 
+    } catch (e) {
+        console.error(e)
+    }
+    // let reducedQuestionsData = reformedQuizData;
     // Output main report and error report
     console.log('PREPARING TO WRITE FILES...');
+    outputJson(reformedQuizData, 'MAIN-REPORT-FULL');
     outputJson(reducedQuestionsData, 'MAIN-REPORT-OUTPUT');
     outputJson(errorReport, 'MAIN-REPORT-ERRRRS');
     outputCsv(reducedQuestionsData, 'MAIN-REPORT-OUTPUT');
     return;
 
+    /***************************************************************
+     * Pulls important information from object to generate report  *
+     * or errors gathered while getting quiz banks and quizzes     *
+     ***************************************************************/
     function generateErrorReport(courseData) {
         try {
             var errorReport = courseData.reduce((acc, courseReport) => {
@@ -162,8 +180,62 @@ function queueLimiterCallback(err, courseQuizzesData) {
      * generate collections of questions that meet a certain       *
      * criteria, and groups those items by the search criteria.    *
      ***************************************************************/
-    function muiltiQuizReducer(questionData) {
-        return quizDataReducer(questionData)
+    function muiltiQuizReducer(questionsData) {
+        const checksByType = {
+            "matching_question": {
+                checkers: [blankTest()],
+                keeperKeys: ['text', 'left', 'right',],
+            },
+            "multiple_choice_question": {
+                checkers: [blankTest(), textTest('no answer text provided')],
+                keeperKeys: ['text',],
+            },
+            "numerical_question": {
+                checkers: [blankTest(), zeroTest()],
+                keeperKeys: ['exact',],
+            },
+            "short_answer_question": {
+                checkers: [blankTest(), hyphenTest(), textTest('response_')],
+                keeperKeys: ['text',],
+            },
+            "fill_in_multiple_blanks_question": {
+                checkers: [blankTest(), hyphenTest(), textTest('response_')],
+                keeperKeys: ['text',],
+            },
+        }
+        return Object.keys(checksByType).reduce((questionsAcc, questionType) => {
+            let targetQuestions = quizDataReducer(questionsData, questionType, checksByType[questionType].checkers, checksByType[questionType].keeperKeys);
+            return questionsAcc.concat(targetQuestions);
+        }, []);
+
+        // checks for blanks in fields
+        function blankTest() {
+            return {
+                validator: new RegExp(/^[\n\s\t\ufeff]+$|^(?![\s\S])$|^null$|^undefined$/, 'gi'),
+                flagReason: 'blank',
+            }
+        }
+        // Check for hyphens in fields
+        function hyphenTest() {
+            return {
+                validator: new RegExp(/-/, 'g'),
+                flagReason: 'hyphen',
+            }
+        }
+        // check for matching text in fields
+        function textTest(text) {
+            return {
+                validator: new RegExp(text, 'gi'),
+                flagReason: `text matched: ${text}`,
+            }
+        }
+        // check for zero in fields
+        function zeroTest() {
+            return {
+                validator: new RegExp(/^0$/, 'i'),
+                flagReason: 'zero',
+            }
+        };
     }
 }
 

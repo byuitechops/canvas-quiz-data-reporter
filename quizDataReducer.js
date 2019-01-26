@@ -1,48 +1,50 @@
+const deepSearch = require('./deepSearch');
+
 /*************************************************************************
  *
  *************************************************************************/
-function quizDataReducer(questionsData) {
-    var matchingQuestions = questionsData.reduce(filterToMatchingQuestions, []);
-    var blankMatchingQuestions = matchingQuestions.reduce(findBlanksInMatchQuestions, [])
-    // var blankMatchingQuestions = matchingQuestions;
+function quizDataReducer(questionsData, questionType, checkers, keeperKeys) {
+    var matchingQuestions = questionsData.reduce(filterToQuestionType, []);
+    var blankMatchingQuestions = matchingQuestions.reduce(reduceToSearchCriteria, []);
     return blankMatchingQuestions;
-}
-/****************************************************************
-* 
-*****************************************************************/
-function filterToMatchingQuestions(questionAcc, question) {
-    if (question.question_type === 'matching_question')
-        questionAcc.push(question);
-    return questionAcc;
-}
-/****************************************************************
-*
-*****************************************************************/
-function findBlanksInMatchQuestions(questionAcc, question) {
-    let valuesToCheck = [].concat(
-        // question.question_text,
-        ...question.question_answers.map((answer) => populateBlanks(answer, ['text', 'left', 'right'])),
-        ...question.question_matches.map((match) => populateBlanks(match, ['text'])),
-    );
-    // console.log(valuesToCheck)
-    if (blanksAreFound(valuesToCheck))
-        questionAcc.push(question);
-    return questionAcc;
 
-    /*******************************************************
-    *
-    ********************************************************/
-    function populateBlanks(objectToReference, keyToCheck) {
-        return keyToCheck.map(key => {
-            return objectToReference[key];
-        });
+    /****************************************************************
+     * 
+     *****************************************************************/
+    function filterToQuestionType(questionAcc, question) {
+        if (question.question_type === questionType)
+            questionAcc.push(question);
+        return questionAcc;
     }
-    /*******************************************************
-    *
-    ********************************************************/
-    function blanksAreFound(valuesToCheck) {
-        let blanksTest = new RegExp(/^[\n\s\t\ufeff]+$/, 'gi');
-        return valuesToCheck.some(value => blanksTest.test(value) || value === null || value === '');
+
+    /****************************************************************
+     *
+     *****************************************************************/
+    function reduceToSearchCriteria(questionAcc, question) {
+
+        let criteriaMet = checkers.some(checker => {
+            let searchMatches = deepSearch(question, checker.validator);
+            let filterMatches = searchMatches.filter((match) => {
+                return keeperKeys.some(key => key === match.path.pop())
+            })
+            if (filterMatches.length > 0) {
+                question.question_flagReason.push(checker.flagReason);
+                return true;
+            }
+            return false;
+        });
+
+        if (criteriaMet)
+            questionAcc.push(question);
+        return questionAcc;
+
+        /*******************************************************
+        *
+        ********************************************************/
+        function blanksAreFound(valuesToCheck) {
+            let blanksTest = new RegExp(/^[\n\s\t\ufeff]+$/, 'gi');
+            return valuesToCheck.some(value => blanksTest.test(value) || value === null || value === '');
+        }
     }
 }
 

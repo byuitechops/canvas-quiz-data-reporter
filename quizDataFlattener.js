@@ -5,7 +5,7 @@ function quizDataFlattener(courseQuizzesData) {
             quiz.quizOrBank_questions.forEach((question) => { // for each question in each quiz
                 let dataSetsToSift = [course, quiz, question];
                 let questionObject = dataSetsToSift.reduce((dataSetAcc, dataSet) => {
-                    let maintainHierarchyKeys = ['question_answers', 'question_matches', 'question_matching_answer_incorrect_matches'];
+                    let maintainHierarchyKeys = ['question_answers', 'question_matches', 'question_matching_answer_incorrect_matches', 'question_flagReason'];
                     Object.keys(dataSet).forEach(dsKey => {
                         if (typeof dataSet[dsKey] !== 'object' || maintainHierarchyKeys.some((key) => key === dsKey))
                             dataSetAcc[dsKey] = dataSet[dsKey];

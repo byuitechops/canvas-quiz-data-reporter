@@ -7,6 +7,8 @@ function quizDataTransformer(quizzesData) {
     var outputCourseData = {
         course_id: (() => courseData.id || null)(),
         course_name: (() => courseData.name || null)(),
+        course_code: (() => courseData.code || null)(),
+        course_sisid: (() => courseData.sis || null)(),
         course_html_url: (() => courseData.html_url || courseData.url || courseData.id ? `https://byui.instructure.com/courses/${courseData.id}` : null)(),
         course_quizzes_banks: [].concat(quizAndBankDataFormatter(questionBanks, 'bank'), quizAndBankDataFormatter(canvasQuizzes, 'quiz')) || null
     }
@@ -34,6 +36,7 @@ function quizDataTransformer(quizzesData) {
             question_answers: question.answers || null,
             question_matches: question.matches || null,
             question_matching_answer_incorrect_matches: question.matching_answer_incorrect_matches || null,
+            question_flagReason: [],
         }
     }
 
