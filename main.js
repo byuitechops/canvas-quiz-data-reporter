@@ -218,7 +218,7 @@ function queueLimiterCallback(err, courseQuizzesData) {
         // Check for hyphens in fields
         function hyphenTest() {
             return {
-                validator: new RegExp(/-/, 'g'),
+                validator: new RegExp(/-/, 'gi'),
                 flagReason: 'hyphen',
             }
         }
