@@ -2,3 +2,4 @@ node_modules
 __archiveReports*
 *.csv
 *report*
+*ignore*

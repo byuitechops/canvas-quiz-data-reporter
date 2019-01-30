@@ -2,6 +2,7 @@ const d3 = require('d3-dsv');
 const cheerio = require('cheerio');
 const fs = require('fs');
 const path = require('path');
+const moment = require('moment');
 
 const quizDataGatherer = require('./quizDataGatherer.js');
 const quizDataTransformer = require('./quizDataTransformer.js');
@@ -127,10 +128,12 @@ function queueLimiterCallback(err, courseQuizzesData) {
     // let reducedQuestionsData = reformedQuizData;
     // Output main report and error report
     console.log('PREPARING TO WRITE FILES...');
-    outputJson(reformedQuizData, 'MAIN-REPORT-FULL');
-    outputJson(reducedQuestionsData, 'MAIN-REPORT-OUTPUT');
-    outputJson(errorReport, 'MAIN-REPORT-ERRRRS');
-    outputCsv(reducedQuestionsData, 'MAIN-REPORT-OUTPUT');
+    let timeStamp = moment().format('YYYYMMDD-kkmm_');
+    let saveLocation = (filename) => path.resolve(`./${timeStamp}${filename}`)
+    outputJson(reformedQuizData, saveLocation('report_full-not-reduced-everything'));
+    outputJson(reducedQuestionsData, saveLocation('report_main'));
+    outputJson(errorReport, saveLocation('report_errors'));
+    outputCsv(reducedQuestionsData, saveLocation('report_main'));
     return;
 
     /***************************************************************
