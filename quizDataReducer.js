@@ -106,3 +106,21 @@ var quizDataReducerTest = () => {
         }
     };
 }
+
+/*
+            // let filterMatches = searchMatches.filter((match) => {
+            //     return keeperKeys.some(keyToKeep => {
+            //         //keyToKeep = ['text','html'] or 'text'
+            //         let keyInMatch = match.path.pop(); // any key that has been matched in the object
+            //         if (!Array.isArray(keyToKeep))
+            //             return keyToKeep === keyValueToMatch;
+            //         keyToKeep.every(key => )
+            //     })
+            // })
+            let filterMatches = checker.keeperKeys.filter(keysToKeep => {
+                return keysToKeep.every(key => {
+                    return searchMatches.some(match => match.path[match.path.length - 1] === key || );
+                })
+
+            })
+            */

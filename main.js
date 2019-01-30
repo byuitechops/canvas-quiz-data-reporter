@@ -8,7 +8,6 @@ const quizDataTransformer = require('./quizDataTransformer.js');
 const quizDataFlattener = require('./quizDataFlattener.js');
 const quizDataReducer = require('./quizDataReducer.js');
 const promiseQueueLimit = require('./promiseQueueLimit.js');
-const deepSearch = require('./deepSearch.js');
 
 let queueLimit = 500;
 
@@ -218,7 +217,11 @@ function queueLimiterCallback(err, courseQuizzesData) {
         // Check for hyphens in fields
         function hyphenTest() {
             return {
-                validator: new RegExp(/-/, 'gi'),
+                // validator: new RegExp(/-/, 'gi'),
+                // validator: new RegExp(/(?!^[1234567890.,$\-+*•^%/()[\]\s]+$)\w+\s*\-\s*\w+/, 'gi'),
+                // validator: new RegExp(/[A-Z]+\s*\-\s*[A-Z]+/, 'gi'),
+                // validator: new RegExp(/[A-Z]+\-[A-Z]+/, 'gi'),
+                validator: new RegExp(/^[^\s\-]+(?:\-[^\s\-]+)+$/, 'gi'),
                 flagReason: 'hyphen',
             }
         }
