@@ -129,7 +129,7 @@ function queueLimiterCallback(err, courseQuizzesData) {
     // Output main report and error report
     console.log('PREPARING TO WRITE FILES...');
     let timeStamp = moment().format('YYYYMMDD-kkmm_');
-    let saveLocation = (filename) => path.resolve(`./${timeStamp}${filename}`)
+    let saveLocation = (filename) => path.resolve(`./_${timeStamp}${filename}`)
     outputJson(reformedQuizData, saveLocation('report_full-not-reduced-everything'));
     outputJson(reducedQuestionsData, saveLocation('report_main'));
     outputJson(errorReport, saveLocation('report_errors'));
@@ -186,23 +186,35 @@ function queueLimiterCallback(err, courseQuizzesData) {
         const checksByType = {
             "matching_question": {
                 checkers: [blankTest()],
-                keeperKeys: ['text', 'left', 'right',],
+                keeperKeys: [
+                    'text',
+                    'left',
+                    'right',
+                ],
             },
             "multiple_choice_question": {
                 checkers: [blankTest(), textTest('no answer text provided')],
-                keeperKeys: ['text',],
+                keeperKeys: [
+                    'text',
+                ],
             },
             "numerical_question": {
                 checkers: [blankTest(), zeroTest()],
-                keeperKeys: ['exact',],
+                keeperKeys: [
+                    'exact',
+                ],
             },
             "short_answer_question": {
                 checkers: [blankTest(), hyphenTest(), textTest('response_')],
-                keeperKeys: ['text',],
+                keeperKeys: [
+                    'text',
+                ],
             },
             "fill_in_multiple_blanks_question": {
                 checkers: [blankTest(), hyphenTest(), textTest('response_')],
-                keeperKeys: ['text',],
+                keeperKeys: [
+                    'text',
+                ],
             },
         }
         return Object.keys(checksByType).reduce((questionsAcc, questionType) => {
