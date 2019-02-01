@@ -1,49 +1,48 @@
 const deepSearch = require('./deepSearch');
+const questionIssueCheckers = require('./questionIssueCheckers');
 
 /*************************************************************************
  *
  *************************************************************************/
 function quizDataReducer(questionsData, questionType, checkers, keeperKeys) {
-    var matchingQuestions = questionsData.reduce(filterToQuestionType, []);
+    var matchingQuestions = questionsData.filter(filterToQuestionType, []);
     var blankMatchingQuestions = matchingQuestions.reduce(reduceToSearchCriteria, []);
     return blankMatchingQuestions;
 
     /****************************************************************
-     * 
+     * Reduces list of questions down to the only the question type
      *****************************************************************/
-    function filterToQuestionType(questionAcc, question) {
-        if (question.question_type === questionType)
-            questionAcc.push(question);
-        return questionAcc;
+    function filterToQuestionType(question) {
+        return question.question_type === questionType;
     }
 
     /****************************************************************
      *
      *****************************************************************/
     function reduceToSearchCriteria(questionAcc, question) {
-        let flatObject = deepSearch(question, RegExp(/[\s\S]*/)); // abstracts hirarchy of object into values and paths
-        let newKeeperKeys = keeperKeys.map(keys => {
-            if (!Array.isArray(keys)) {
-                keys = [keys];
-            }
-            return keys.filter(key => {
-                return flatObject.some(property => last(property.path) === key)
-            })
-        })
+        // let flatObject = deepSearch(question, RegExp(/[\s\S]*/)); // abstracts hirarchy of object into values and paths
+        // let newKeeperKeys = keeperKeys.map(keys => {
+        //     if (!Array.isArray(keys)) {
+        //         keys = [keys];
+        //     }
+        //     return keys.filter(key => {
+        //         return flatObject.some(property => last(property.path) === key)
+        //     })
+        // })
         let criteriaMet = checkers.reduce((checkAcc, checker) => {
             let searchMatches = deepSearch(question, checker.validator)
-            let filterMatches = newKeeperKeys.filter(keyArr => {
-                // output is a list of keys that had a match
-                return keyArr.every(key => {
-                    return searchMatches.some(match => {
-                        return match.path[match.path.length - 1] === key;
-                    })
-                })
-            })
-            // console.log(filterMatches)
-            // let filterMatches = searchMatches.filter((match) => {
-            //     return keeperKeys.some(key => key === match.path.pop())
+            // let filterMatches = newKeeperKeys.filter(keyArr => {
+            //     // output is a list of keys that had a match
+            //     return keyArr.every(key => {
+            //         return searchMatches.some(match => {
+            //             return match.path[match.path.length - 1] === key;
+            //         })
+            //     })
             // })
+            // console.log(filterMatches)
+            let filterMatches = searchMatches.filter((match) => {
+                return keeperKeys.some(key => key === match.path.pop())
+            })
             if (filterMatches.length > 0) {
                 question.question_flagReason.push(checker.flagReason);
                 checkAcc = true;
@@ -54,17 +53,12 @@ function quizDataReducer(questionsData, questionType, checkers, keeperKeys) {
         if (criteriaMet)
             questionAcc.push(question);
         return questionAcc;
-
-
-        function last(arr = []) {
-            return arr[arr.length - 1];
-        }
     }
 }
 
 module.exports = quizDataReducer;
 
-quizDataReducerTest();
+// quizDataReducerTest();
 
 function quizDataReducerTest() {
     let question = [{
@@ -95,8 +89,8 @@ function quizDataReducerTest() {
     }]
 
     let checkByType = {
-        checkers: [blankTest(), hyphenTest(), textTest('response_')],
-        keeperKeys: [['text', 'html']],
+        checkers: [blankTest(), hyphenTest(), textTest('response_'),],
+        keeperKeys: ['text'],
     }
 
     let output = quizDataReducer(question, "short_answer_question", checkByType.checkers, checkByType.keeperKeys);

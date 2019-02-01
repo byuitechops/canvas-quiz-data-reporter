@@ -16,6 +16,27 @@ let queueLimit = 500;
  * 
  *************************************************************************/
 function getInputs() {
+    // Take whatever is on the command line, else this thing
+    let fileLocation = process.argv[2] || path.resolve('./Winter2019onlineScaledCoursesGroupReport_1547062079627.csv');
+    // Get Courses to Search
+    let courseListObject = getInputViaCsv(fileLocation);
+
+    // ALTERNATE INPUT OPTION BELOW:
+    // let accountNumber = process.argv[2] || 8;
+    // let courseListObject = getInputViaApi(accountNumber);
+    // ^END ALTERNATE INPUT OPTION^
+
+    courseListObject = Array.isArray(courseListObject) ? courseListObject : [].concat(courseListObject);
+    // Set Cookies / Keys
+    let canvasSessionKey = process.argv[3] || process.env.CANVAS_SESSION || null;
+    let csrfTokenKey = process.argv[4] || process.env._CSRF_TOKEN || null;
+
+    return {
+        courseList: courseListObject,
+        canvasSessionKey: canvasSessionKey,
+        csrfTokenKey: csrfTokenKey
+    };
+
     function getInputViaCsv(file) {
         if (path.extname(file) !== '.csv') {
             throw new Error('File Input not a CSV!');
@@ -26,19 +47,10 @@ function getInputs() {
             return courseListObject;
         }
     }
-    // Take whatever is on the command line, else this thing
-    let fileLocation = process.argv[2] || path.resolve('./Winter2019onlineScaledCoursesGroupReport_1547062079627.csv');
-    // Get Courses to Search
-    let courseListObject = getInputViaCsv(fileLocation);
-    // Set Cookies / Keys
-    let canvasSessionKey = process.argv[3] || process.env.CANVAS_SESSION || null;
-    let csrfTokenKey = process.argv[4] || process.env._CSRF_TOKEN || null;
-
-    return {
-        courseList: courseListObject,
-        canvasSessionKey: canvasSessionKey,
-        csrfTokenKey: csrfTokenKey
-    };
+    // TODO Write Alternate Input Method
+    function getInputViaApi(accountNum) {
+        return
+    }
 }
 
 /*************************************************************************
@@ -46,16 +58,17 @@ function getInputs() {
  *************************************************************************/
 function outputJson(courseQuizData, filename) {
     var outputData = JSON.stringify(courseQuizData, null, 4);
-    fs.writeFileSync(`./${filename}.json`, outputData);
+    fs.writeFileSync(`${filename}.json`, outputData);
 }
 
 /*************************************************************************
- * Writes CSV
+ * Writes CSV 
+ * // TODO Update course_code to course_course_code, and course_sisid to course_sis_course_id to match canvas api, and all references to it in code
  *************************************************************************/
 function outputCsv(courseData, filename) {
     var keysToKeep = [
         "course_id",
-        "course_code", // Dont have this field
+        "course_code",
         "course_name",
         "course_sisid",
         "course_html_url",
@@ -71,7 +84,7 @@ function outputCsv(courseData, filename) {
     courseQuizData = new Array(...courseData);
     var courseDataCsv = courseQuizData.map(csvPrepFields);
     var outputData = d3.csvFormat(courseDataCsv, keysToKeep)
-    fs.writeFileSync(`./${filename}.csv`, outputData);
+    fs.writeFileSync(`${filename}.csv`, outputData);
     return;
 
     function csvPrepFields(question) {
@@ -103,7 +116,7 @@ function queueLimiterAdapter(canvasSessionKey, csrfTokenKey, queueLength) {
     return async function runner(course) {
         return Promise.resolve(quizDataGatherer(course.id, canvasSessionKey, csrfTokenKey))
             .then((quizData) => { // Get a count of completed tasks
-                if (queueLength !== null || queueLength !== undefined)
+                if (typeof queueLength === 'number' || typeof queueLength === 'string')
                     console.log(`${++queueLimiterAdapter.numberCompleted}/${queueLength}, ${course['name']} Completed, CourseID: ${course.id}`);
                 quizData.courseData = course;
                 return quizData;
@@ -117,23 +130,20 @@ queueLimiterAdapter.numberCompleted = 0;
 * Callback style function required to work with promiseQueueLimiter params.
 *************************************************************************/
 function queueLimiterCallback(err, courseQuizzesData) {
-    console.log('DATA GATHERING COMPLETE. DATA REDUCTION BEGINNING...')
-    let errorReport = generateErrorReport(courseQuizzesData); // Generate error report 
-    let reformedQuizData = reformatQuizData(courseQuizzesData); // Shave Quiz and Question data to contain only info deemed worthy to keep
-    try {
-        var reducedQuestionsData = muiltiQuizReducer(reformedQuizData); // 
-    } catch (e) {
-        console.error(e)
-    }
-    // let reducedQuestionsData = reformedQuizData;
+    // Reformat, Reduce, and Prepare Data for Output
+    console.log('DATA GATHERING COMPLETE. DATA REDUCTION BEGINNING...');
+    let errorReport = generateErrorReport(courseQuizzesData); // Generate error report
+    let reformedQuizData = reformatQuizData(courseQuizzesData); // Uniformize and Flatten Question Data
+    var reducedQuestionsData = muiltiQuizReducer(reformedQuizData); // Filter quiz data down to matches
     // Output main report and error report
     console.log('PREPARING TO WRITE FILES...');
     let timeStamp = moment().format('YYYYMMDD-kkmm_');
-    let saveLocation = (filename) => path.resolve(`./_${timeStamp}${filename}`)
+    let saveLocation = (filename) => path.resolve(`./_${timeStamp}${filename}`);
     outputJson(reformedQuizData, saveLocation('report_full-not-reduced-everything'));
     outputJson(reducedQuestionsData, saveLocation('report_main'));
     outputJson(errorReport, saveLocation('report_errors'));
     outputCsv(reducedQuestionsData, saveLocation('report_main'));
+    console.log('FILES SUCCESSFULLY WRITTEN...EXITING PROGRAM.');
     return;
 
     /***************************************************************
@@ -183,77 +193,11 @@ function queueLimiterCallback(err, courseQuizzesData) {
      * criteria, and groups those items by the search criteria.    *
      ***************************************************************/
     function muiltiQuizReducer(questionsData) {
-        const checksByType = {
-            "matching_question": {
-                checkers: [blankTest()],
-                keeperKeys: [
-                    'text',
-                    'left',
-                    'right',
-                ],
-            },
-            "multiple_choice_question": {
-                checkers: [blankTest(), textTest('no answer text provided')],
-                keeperKeys: [
-                    'text',
-                ],
-            },
-            "numerical_question": {
-                checkers: [blankTest(), zeroTest()],
-                keeperKeys: [
-                    'exact',
-                ],
-            },
-            "short_answer_question": {
-                checkers: [blankTest(), hyphenTest(), textTest('response_')],
-                keeperKeys: [
-                    'text',
-                ],
-            },
-            "fill_in_multiple_blanks_question": {
-                checkers: [blankTest(), hyphenTest(), textTest('response_')],
-                keeperKeys: [
-                    'text',
-                ],
-            },
-        }
+        let checksByType = require('./questionIssueCheckers.js');
         return Object.keys(checksByType).reduce((questionsAcc, questionType) => {
             let targetQuestions = quizDataReducer(questionsData, questionType, checksByType[questionType].checkers, checksByType[questionType].keeperKeys);
             return questionsAcc.concat(targetQuestions);
         }, []);
-
-        // checks for blanks in fields
-        function blankTest() {
-            return {
-                validator: new RegExp(/^[\n\s\t\ufeff]+$|^(?![\s\S])$|^null$|^undefined$/, 'gi'),
-                flagReason: 'blank',
-            }
-        }
-        // Check for hyphens in fields
-        function hyphenTest() {
-            return {
-                // validator: new RegExp(/-/, 'gi'),
-                // validator: new RegExp(/(?!^[1234567890.,$\-+*•^%/()[\]\s]+$)\w+\s*\-\s*\w+/, 'gi'),
-                // validator: new RegExp(/[A-Z]+\s*\-\s*[A-Z]+/, 'gi'),
-                // validator: new RegExp(/[A-Z]+\-[A-Z]+/, 'gi'),
-                validator: new RegExp(/^[^\s\-]+(?:\-[^\s\-]+)+$/, 'gi'),
-                flagReason: 'hyphen',
-            }
-        }
-        // check for matching text in fields
-        function textTest(text) {
-            return {
-                validator: new RegExp(text, 'gi'),
-                flagReason: `text matched: ${text}`,
-            }
-        }
-        // check for zero in fields
-        function zeroTest() {
-            return {
-                validator: new RegExp(/^0$/, 'i'),
-                flagReason: 'zero',
-            }
-        };
     }
 }
 
