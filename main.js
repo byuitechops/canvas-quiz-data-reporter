@@ -10,31 +10,31 @@ const quizDataFlattener = require('./quizDataFlattener.js');
 const quizDataReducer = require('./quizDataReducer.js');
 const promiseQueueLimit = require('./promiseQueueLimit.js');
 
-let queueLimit = 500;
+let queueLimit = 1;
 
 /*************************************************************************
  * 
  *************************************************************************/
-function getInputs() {
+async function getInputs() {
     // Take whatever is on the command line, else this thing
     let fileLocation = process.argv[2] || path.resolve('./Winter2019onlineScaledCoursesGroupReport_1547062079627.csv');
     // Get Courses to Search
     let courseListObject = getInputViaCsv(fileLocation);
-
-    // ALTERNATE INPUT OPTION BELOW:
-    // let accountNumber = process.argv[2] || 8;
-    // let courseListObject = getInputViaApi(accountNumber);
-    // ^END ALTERNATE INPUT OPTION^
-
+    let canvasTokens = await getCanvasTokens();
     courseListObject = Array.isArray(courseListObject) ? courseListObject : [].concat(courseListObject);
-    // Set Cookies / Keys
-    let canvasSessionKey = process.argv[3] || process.env.CANVAS_SESSION || null;
-    let csrfTokenKey = process.argv[4] || process.env._CSRF_TOKEN || null;
 
     return {
         courseList: courseListObject,
-        canvasSessionKey: canvasSessionKey,
-        csrfTokenKey: csrfTokenKey
+        authData: {
+            cookies: {
+                canvasSessionKey: canvasTokens.canvasSessionKey,
+                csrfTokenKey: canvasTokens.csrfTokenKey
+            },
+            auth: {
+                userName: canvasTokens.username,
+                passWord: canvasTokens.password
+            }
+        }
     };
 
     function getInputViaCsv(file) {
@@ -50,6 +50,54 @@ function getInputs() {
     // TODO Write Alternate Input Method
     function getInputViaApi(accountNum) {
         return
+    }
+
+    async function getCanvasTokens() {
+        let auth = {};
+        let usePuppeteer = false;
+        let authLocation = process.argv[3];
+        if (typeof authLocation === 'string' && path.extname(path.resolve(authLocation)) === '.json') {
+            auth = require(authLocation);
+            usePuppeteer = true;
+        }
+        if (usePuppeteer) {
+            console.log('GETTING COOKIES FROM PUPPETEER...');
+            let cookies = await getCookies(auth.username, auth.password);
+            auth.canvasSessionKey = cookies.canvasSessionKey;
+            auth.csrfTokenKey = cookies.csrfTokenKey;
+        } else {
+            console.log('GETTING COOKIES FROM ENVIRONMENT VARIABLES...');
+            auth.canvasSessionKey = process.env.CANVAS_SESSION;
+            auth.csrfTokenKey = process.env._CSRF_TOKEN;
+        }
+        if (!auth.canvasSessionKey && !auth.csrfTokenKey)
+            throw 'Problem Setting Canvas Session ID and/or CRFS Token...\nExiting Program.';
+        else if (!auth.username && !auth.password)
+            throw 'Problem Getting Canvas Username and/or Canvas Password...\nExiting Program.';
+
+        console.log('GOT CANVAS AUTH SUCCESSFULLY...');
+        return auth;
+
+        async function getCookies(username, password) {
+            const puppeteer = require('puppeteer');
+            const browser = await puppeteer.launch();
+            const page = await browser.newPage();
+            await page.goto("https://byui.instructure.com/login/canvas");
+            await page.type("#pseudonym_session_unique_id", username);
+            await page.type("#pseudonym_session_password", password);
+            await Promise.all([
+                page.waitForNavigation(),
+                page.click('button[type=submit]')
+            ]);
+            var cookies = await page.cookies();
+            await browser.close();
+
+            var authData = {
+                canvasSessionKey: cookies.find(n => n.name == 'canvas_session').value,
+                csrfTokenKey: cookies.find(n => n.name == '_csrf_token').value,
+            };
+            return authData;
+        }
     }
 }
 
@@ -112,9 +160,9 @@ function outputCsv(courseData, filename) {
  * Returns an async function with the correct variables in scope for the
  * core logic function to rely on. quizDataGatherer is core logic function
  *************************************************************************/
-function queueLimiterAdapter(canvasSessionKey, csrfTokenKey, queueLength) {
+function queueLimiterAdapter(authData, queueLength) {
     return async function runner(course) {
-        return Promise.resolve(quizDataGatherer(course.id, canvasSessionKey, csrfTokenKey))
+        return Promise.resolve(quizDataGatherer(course.id, authData))
             .then((quizData) => { // Get a count of completed tasks
                 if (typeof queueLength === 'number' || typeof queueLength === 'string')
                     console.log(`${++queueLimiterAdapter.numberCompleted}/${queueLength}, ${course['name']} Completed, CourseID: ${course.id}`);
@@ -134,7 +182,8 @@ function queueLimiterCallback(err, courseQuizzesData) {
     console.log('DATA GATHERING COMPLETE. DATA REDUCTION BEGINNING...');
     let errorReport = generateErrorReport(courseQuizzesData); // Generate error report
     let reformedQuizData = reformatQuizData(courseQuizzesData); // Uniformize and Flatten Question Data
-    var reducedQuestionsData = muiltiQuizReducer(reformedQuizData); // Filter quiz data down to matches
+    // var reducedQuestionsData = muiltiQuizReducer(reformedQuizData); // Filter quiz data down to matches
+    var reducedQuestionsData = quizDataReducer(reformedQuizData); // Filter quiz data down to matches
     // Output main report and error report
     console.log('PREPARING TO WRITE FILES...');
     let timeStamp = moment().format('YYYYMMDD-kkmm_');
@@ -186,31 +235,19 @@ function queueLimiterCallback(err, courseQuizzesData) {
             console.error(e);
         }
     }
-
-    /***************************************************************
-     * Runs reduce on the question collection multiple times to    *
-     * generate collections of questions that meet a certain       *
-     * criteria, and groups those items by the search criteria.    *
-     ***************************************************************/
-    function muiltiQuizReducer(questionsData) {
-        let checksByType = require('./questionIssueCheckers.js');
-        return Object.keys(checksByType).reduce((questionsAcc, questionType) => {
-            let targetQuestions = quizDataReducer(questionsData, questionType, checksByType[questionType].checkers, checksByType[questionType].keeperKeys);
-            return questionsAcc.concat(targetQuestions);
-        }, []);
-    }
 }
 
 
 /*************************************************************************
  * 
  *************************************************************************/
-function main() {
-    var input = getInputs();
-    promiseQueueLimit(input.courseList, queueLimiterAdapter(input.canvasSessionKey, input.csrfTokenKey, input.courseList.length), queueLimit, queueLimiterCallback);
+async function main() {
+    var input = await getInputs();
+    console.log('STARTING DATA GATHERING...');
+    await promiseQueueLimit(input.courseList, queueLimiterAdapter(input.authData, input.courseList.length), queueLimit, queueLimiterCallback);
     return;
 
 
 }
 
-main();
+main().catch(console.error);

@@ -1,10 +1,21 @@
 const deepSearch = require('./deepSearch');
 const questionIssueCheckers = require('./questionIssueCheckers');
 
+function quizDataReducer(questionsData) {
+    return checkByQuestionType(questionsData)
+}
+
+function checkByQuestionType(questionsData) {
+    return Object.keys(questionIssueCheckers).reduce((questionsAcc, questionType) => {
+        let targetQuestions = questionReducer(questionsData, questionType, questionIssueCheckers[questionType].checkers, questionIssueCheckers[questionType].keeperKeys);
+        return questionsAcc.concat(targetQuestions);
+    }, []);
+}
+
 /*************************************************************************
  *
  *************************************************************************/
-function quizDataReducer(questionsData, questionType, checkers, keeperKeys) {
+function questionReducer(questionsData, questionType, checkers, keeperKeys) {
     var matchingQuestions = questionsData.filter(filterToQuestionType, []);
     var blankMatchingQuestions = matchingQuestions.reduce(reduceToSearchCriteria, []);
     return blankMatchingQuestions;

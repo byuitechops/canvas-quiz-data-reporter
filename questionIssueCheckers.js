@@ -1,3 +1,25 @@
+// GOAL: Pass parameters into function to generate objects which specify things such as
+//  1. which keys to test
+//  2. which question types to test on
+//  3. flag reason
+//  4. a test to run
+
+// function makeTest(validator, flagReason, questionType, keeperKeys) {
+//     var example = {
+//         validator: (value) => true,
+//         flagReason: null,
+//         questionType: null,
+//         keeperKeys: [null],
+//     }
+//     var output = {
+//         validator: validator,
+//         flagReason: flagReason,
+//         questionType: questionType,
+//         keeperKeys: keeperKeys,
+//     }
+//     return Object.assign(example, output)
+// }
+
 const questionIssueCheckers = {
     "matching_question": {
         checkers: [blankTest()],

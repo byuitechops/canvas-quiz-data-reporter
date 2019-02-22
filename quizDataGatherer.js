@@ -4,13 +4,10 @@ const QB = require('canvas-question-banks');
 /*************************************************************************
  * 
  *************************************************************************/
-async function searchQuizBanks(courseId, canvasSessionKey, csrfTokenKey, errorsAccumulator) {
+async function searchQuizBanks(courseId, authData, errorsAccumulator) {
     try {
         try {
-            const QuestionBanks = QB({
-                canvas_session: canvasSessionKey,
-                _csrf_token: csrfTokenKey
-            });
+            const QuestionBanks = QB(authData.auth);
             var questionBanks = new QuestionBanks(courseId);
         } catch (e) {
             e.message2 = `SETTING COOKIES MIGHT HAVE FAILED`;
