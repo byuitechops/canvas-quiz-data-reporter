@@ -15,25 +15,21 @@ let queueLimit = 1;
 /*************************************************************************
  * 
  *************************************************************************/
-async function getInputs() {
+function getInputs() {
     // Take whatever is on the command line, else this thing
     let fileLocation = process.argv[2] || path.resolve('./Winter2019onlineScaledCoursesGroupReport_1547062079627.csv');
+
     // Get Courses to Search
     let courseListObject = getInputViaCsv(fileLocation);
-    let canvasTokens = await getCanvasTokens();
+    let auth = getAuth();
     courseListObject = Array.isArray(courseListObject) ? courseListObject : [].concat(courseListObject);
 
     return {
         courseList: courseListObject,
+        // correct casing is needed for puppeteer-canvas-login used in canvas-question-banks
         authData: {
-            cookies: {
-                canvasSessionKey: canvasTokens.canvasSessionKey,
-                csrfTokenKey: canvasTokens.csrfTokenKey
-            },
-            auth: {
-                userName: canvasTokens.username,
-                passWord: canvasTokens.password
-            }
+            userName: auth.userName,
+            passWord: auth.passWord
         }
     };
 
@@ -47,57 +43,14 @@ async function getInputs() {
             return courseListObject;
         }
     }
-    // TODO Write Alternate Input Method
-    function getInputViaApi(accountNum) {
-        return
-    }
 
-    async function getCanvasTokens() {
-        let auth = {};
-        let usePuppeteer = false;
-        let authLocation = process.argv[3];
-        if (typeof authLocation === 'string' && path.extname(path.resolve(authLocation)) === '.json') {
-            auth = require(authLocation);
-            usePuppeteer = true;
+    function getAuth() {
+        var auth = {
+            userName: process.env.USERNAMENODE,
+            passWord: process.env.PASSWORD
         }
-        if (usePuppeteer) {
-            console.log('GETTING COOKIES FROM PUPPETEER...');
-            let cookies = await getCookies(auth.username, auth.password);
-            auth.canvasSessionKey = cookies.canvasSessionKey;
-            auth.csrfTokenKey = cookies.csrfTokenKey;
-        } else {
-            console.log('GETTING COOKIES FROM ENVIRONMENT VARIABLES...');
-            auth.canvasSessionKey = process.env.CANVAS_SESSION;
-            auth.csrfTokenKey = process.env._CSRF_TOKEN;
-        }
-        if (!auth.canvasSessionKey && !auth.csrfTokenKey)
-            throw 'Problem Setting Canvas Session ID and/or CRFS Token...\nExiting Program.';
-        else if (!auth.username && !auth.password)
-            throw 'Problem Getting Canvas Username and/or Canvas Password...\nExiting Program.';
 
-        console.log('GOT CANVAS AUTH SUCCESSFULLY...');
         return auth;
-
-        async function getCookies(username, password) {
-            const puppeteer = require('puppeteer');
-            const browser = await puppeteer.launch();
-            const page = await browser.newPage();
-            await page.goto("https://byui.instructure.com/login/canvas");
-            await page.type("#pseudonym_session_unique_id", username);
-            await page.type("#pseudonym_session_password", password);
-            await Promise.all([
-                page.waitForNavigation(),
-                page.click('button[type=submit]')
-            ]);
-            var cookies = await page.cookies();
-            await browser.close();
-
-            var authData = {
-                canvasSessionKey: cookies.find(n => n.name == 'canvas_session').value,
-                csrfTokenKey: cookies.find(n => n.name == '_csrf_token').value,
-            };
-            return authData;
-        }
     }
 }
 
@@ -174,10 +127,11 @@ function queueLimiterAdapter(authData, queueLength) {
 queueLimiterAdapter.numberCompleted = 0;
 
 /*************************************************************************
-* The task to run after the async logic of the program has finished.
-* Callback style function required to work with promiseQueueLimiter params.
-*************************************************************************/
+ * The task to run after the async logic of the program has finished.
+ * Callback style function required to work with promiseQueueLimiter params.
+ *************************************************************************/
 function queueLimiterCallback(err, courseQuizzesData) {
+    // TODO: INSERT QB.logout() HERE
     // Reformat, Reduce, and Prepare Data for Output
     console.log('DATA GATHERING COMPLETE. DATA REDUCTION BEGINNING...');
     let errorReport = generateErrorReport(courseQuizzesData); // Generate error report
@@ -188,7 +142,7 @@ function queueLimiterCallback(err, courseQuizzesData) {
     console.log('PREPARING TO WRITE FILES...');
     let timeStamp = moment().format('YYYYMMDD-kkmm_');
     let saveLocation = (filename) => path.resolve(`./_${timeStamp}${filename}`);
-    outputJson(reformedQuizData, saveLocation('report_full-not-reduced-everything'));
+    // outputJson(reformedQuizData, saveLocation('report_full-not-reduced-everything'));
     outputJson(reducedQuestionsData, saveLocation('report_main'));
     outputJson(errorReport, saveLocation('report_errors'));
     outputCsv(reducedQuestionsData, saveLocation('report_main'));
@@ -242,9 +196,11 @@ function queueLimiterCallback(err, courseQuizzesData) {
  * 
  *************************************************************************/
 async function main() {
-    var input = await getInputs();
+    var input = getInputs();
     console.log('STARTING DATA GATHERING...');
-    await promiseQueueLimit(input.courseList, queueLimiterAdapter(input.authData, input.courseList.length), queueLimit, queueLimiterCallback);
+
+    // TODO: INSERT QB.QuestionBanks(auth) HERE
+    promiseQueueLimit(input.courseList, queueLimiterAdapter(input.authData, input.courseList.length), queueLimit, queueLimiterCallback);
     return;
 
 

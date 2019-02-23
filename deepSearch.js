@@ -1,3 +1,4 @@
+// const cheerio = require('cheerio');
 /*************************************************************************
  * Searches through an object using recursion any time an object is found 
  *************************************************************************/
@@ -15,6 +16,7 @@ module.exports = function deepSearch(searchItem, searchPhrase) {
         let value = typeof searchValue === 'string' ? searchValue : searchValue.toString();
         let searchExp = new RegExp(searchPhrase);
         // Test Phrases
+        // value = cheerio.load(value).text();
         return searchExp.test(value);
     }
 
