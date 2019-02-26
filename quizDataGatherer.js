@@ -4,10 +4,10 @@ const QBTools = require('canvas-question-banks');
 /*************************************************************************
  * 
  *************************************************************************/
-async function searchQuizBanks(courseId, authData, errorsAccumulator) {
+async function searchQuizBanks(courseId, QuestionBanksTools, errorsAccumulator) {
     try {
         try {
-            var QuestionBanksTools = await QBTools(authData);
+            // var QuestionBanksTools = await QBTools(authData);
             var questionBanks = new QuestionBanksTools.QuestionBanks(courseId);
         } catch (e) {
             e.message2 = `Failed Auth or Get Course, for course ${courseId}`;
@@ -35,7 +35,8 @@ async function searchQuizBanks(courseId, authData, errorsAccumulator) {
         errorsAccumulator.push(e);
     }
 
-    await QuestionBanksTools.logout();
+    // await QuestionBanksTools.logout();
+    await questionBanks.page.close().catch(() => console.log("IM THE PROBLEM!"));
     // Return all question banks
     if (Array.isArray(questionBanks.questionBanks))
         return questionBanks.questionBanks;
@@ -59,10 +60,10 @@ async function searchCanvasQuizzes(courseId) {
 /*************************************************************************
  * 
  *************************************************************************/
-async function quizDataGatherer(courseId, authData) {
+async function quizDataGatherer(courseId, QuestionBanksTools) {
     let errorsAccumulator = [];
     var quizData = await Promise.all([
-        searchQuizBanks(courseId, authData, errorsAccumulator),
+        searchQuizBanks(courseId, QuestionBanksTools, errorsAccumulator),
         searchCanvasQuizzes(courseId)
     ]);
     // Change Promise.all from Array to Object
