@@ -3,6 +3,8 @@ const cheerio = require('cheerio');
 const fs = require('fs');
 const path = require('path');
 const moment = require('moment');
+const QBTools = require('canvas-question-banks');
+const canvas = require('canvas-api-wrapper');
 
 const quizDataGatherer = require('./quizDataGatherer.js');
 const quizDataTransformer = require('./quizDataTransformer.js');
@@ -10,17 +12,21 @@ const quizDataFlattener = require('./quizDataFlattener.js');
 const quizDataReducer = require('./quizDataReducer.js');
 const promiseQueueLimit = require('./promiseQueueLimit.js');
 
-let queueLimit = 1;
+var QuestionBanksTools;
+
+let queueLimit = 5;
 
 /*************************************************************************
  * 
  *************************************************************************/
-function getInputs() {
+async function getInputs() {
     // Take whatever is on the command line, else this thing
     let fileLocation = process.argv[2] || path.resolve('./Winter2019onlineScaledCoursesGroupReport_1547062079627.csv');
 
     // Get Courses to Search
-    let courseListObject = getInputViaCsv(fileLocation);
+    // let courseListObject = getInputViaCsv(fileLocation);
+    // let courseListObject = await getInputViaApi();
+    let courseListObject = getInputViaJson(fileLocation);
     let auth = getAuth();
     courseListObject = Array.isArray(courseListObject) ? courseListObject : [].concat(courseListObject);
 
@@ -43,6 +49,20 @@ function getInputs() {
             return courseListObject;
         }
     }
+
+    function getInputViaJson(file) {
+        if (path.extname(file) !== '.json') {
+            throw new Error('File Input not a JSON!');
+        } else {
+            return require(path.resolve('./', file));
+        }
+    }
+
+    async function getInputViaApi() {
+        canvas.subdomain = 'byui.beta'
+        return await canvas.get('https://byui.beta.instructure.com/api/v1/accounts/1/courses?enrollment_term_id=23&per_page=100')
+    }
+
 
     function getAuth() {
         var auth = {
@@ -108,14 +128,21 @@ function outputCsv(courseData, filename) {
         }
     }
 }
+/*************************************************************************
+ * Writes CSV 
+ *************************************************************************/
+function makeOutputFolder(folderName) {
+    if (!fs.existsSync(folderName))
+        fs.mkdirSync(folderName);
+}
 
 /*************************************************************************
  * Returns an async function with the correct variables in scope for the
  * core logic function to rely on. quizDataGatherer is core logic function
  *************************************************************************/
-function queueLimiterAdapter(authData, queueLength) {
+function queueLimiterAdapter(questionBanksTools, queueLength) {
     return async function runner(course) {
-        return Promise.resolve(quizDataGatherer(course.id, authData))
+        return Promise.resolve(quizDataGatherer(course.id, questionBanksTools))
             .then((quizData) => { // Get a count of completed tasks
                 if (typeof queueLength === 'number' || typeof queueLength === 'string')
                     console.log(`${++queueLimiterAdapter.numberCompleted}/${queueLength}, ${course['name']} Completed, CourseID: ${course.id}`);
@@ -131,7 +158,7 @@ queueLimiterAdapter.numberCompleted = 0;
  * Callback style function required to work with promiseQueueLimiter params.
  *************************************************************************/
 function queueLimiterCallback(err, courseQuizzesData) {
-    // TODO: INSERT QB.logout() HERE
+    QuestionBanksTools.logout();
     // Reformat, Reduce, and Prepare Data for Output
     console.log('DATA GATHERING COMPLETE. DATA REDUCTION BEGINNING...');
     let errorReport = generateErrorReport(courseQuizzesData); // Generate error report
@@ -142,7 +169,8 @@ function queueLimiterCallback(err, courseQuizzesData) {
     console.log('PREPARING TO WRITE FILES...');
     let timeStamp = moment().format('YYYYMMDD-kkmm_');
     let saveLocation = (filename) => path.resolve(`./_${timeStamp}${filename}`);
-    // outputJson(reformedQuizData, saveLocation('report_full-not-reduced-everything'));
+    makeOutputFolder(saveLocation('reports'));
+    outputJson(reformedQuizData, saveLocation('report_full-not-reduced-everything'));
     outputJson(reducedQuestionsData, saveLocation('report_main'));
     outputJson(errorReport, saveLocation('report_errors'));
     outputCsv(reducedQuestionsData, saveLocation('report_main'));
@@ -196,11 +224,10 @@ function queueLimiterCallback(err, courseQuizzesData) {
  * 
  *************************************************************************/
 async function main() {
-    var input = getInputs();
+    var input = await getInputs();
     console.log('STARTING DATA GATHERING...');
-
-    // TODO: INSERT QB.QuestionBanks(auth) HERE
-    promiseQueueLimit(input.courseList, queueLimiterAdapter(input.authData, input.courseList.length), queueLimit, queueLimiterCallback);
+    QuestionBanksTools = await QBTools(input.authData);
+    promiseQueueLimit(input.courseList, queueLimiterAdapter(QuestionBanksTools, input.courseList.length), queueLimit, queueLimiterCallback);
     return;
 
 
