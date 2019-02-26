@@ -7,8 +7,8 @@ function quizDataTransformer(quizzesData) {
     var outputCourseData = {
         course_id: (() => courseData.id || null)(),
         course_name: (() => courseData.name || null)(),
-        course_code: (() => courseData.code || null)(),
-        course_sisid: (() => courseData.sis || null)(),
+        course_code: (() => courseData.course_code || null)(),
+        course_sisid: (() => courseData.sis_course_id || null)(),
         course_html_url: (() => courseData.html_url || courseData.url || courseData.id ? `https://byui.instructure.com/courses/${courseData.id}` : null)(),
         course_quizzes_banks: [].concat(quizAndBankDataFormatter(questionBanks, 'bank'), quizAndBankDataFormatter(canvasQuizzes, 'quiz')) || null
     }
