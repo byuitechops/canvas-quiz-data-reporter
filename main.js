@@ -14,19 +14,28 @@ const promiseQueueLimit = require('./promiseQueueLimit.js');
 
 var QuestionBanksTools;
 
-let queueLimit = 5;
+let queueLimit = 20;
 
 /*************************************************************************
  * 
  *************************************************************************/
 async function getInputs() {
     // Take whatever is on the command line, else this thing
-    let fileLocation = process.argv[2] || path.resolve('./Winter2019onlineScaledCoursesGroupReport_1547062079627.csv');
+    let fileLocation = process.argv[2];
+    process.argv[3] = process.argv[3] || 'byui';
+    let subdomain = process.argv[3];
 
+    let courseListObject;
     // Get Courses to Search
-    // let courseListObject = getInputViaCsv(fileLocation);
-    // let courseListObject = await getInputViaApi();
-    let courseListObject = getInputViaJson(fileLocation);
+    if (path.extname(fileLocation) === '.csv') {
+        courseListObject = getInputViaCsv(fileLocation);
+    } else if (path.extname(fileLocation) === '.json') {
+        courseListObject = getInputViaJson(fileLocation);
+    } else if (Number.isInteger(Number(fileLocation))) {
+        courseListObject = await getInputViaApi(fileLocation);
+    } else {
+        throw 'Not a valid Input Type';
+    }
     let auth = getAuth();
     courseListObject = Array.isArray(courseListObject) ? courseListObject : [].concat(courseListObject);
 
@@ -35,7 +44,11 @@ async function getInputs() {
         // correct casing is needed for puppeteer-canvas-login used in canvas-question-banks
         authData: {
             userName: auth.userName,
-            passWord: auth.passWord
+            passWord: auth.passWord,
+            subdomain: `${subdomain}.instructure.com`,
+            launchOptions: {
+                headless: true
+            },
         }
     };
 
@@ -58,9 +71,9 @@ async function getInputs() {
         }
     }
 
-    async function getInputViaApi() {
-        canvas.subdomain = 'byui.beta'
-        return await canvas.get('https://byui.beta.instructure.com/api/v1/accounts/1/courses?enrollment_term_id=23&per_page=100')
+    async function getInputViaApi(id) {
+        canvas.subdomain = subdomain;
+        return await canvas.get(`/api/v1/courses/${id}`);
     }
 
 
@@ -170,10 +183,10 @@ function queueLimiterCallback(err, courseQuizzesData) {
     let timeStamp = moment().format('YYYYMMDD-kkmm_');
     let saveLocation = (filename) => path.resolve(`./_${timeStamp}${filename}`);
     makeOutputFolder(saveLocation('reports'));
-    outputJson(reformedQuizData, saveLocation('report_full-not-reduced-everything'));
     outputJson(reducedQuestionsData, saveLocation('report_main'));
     outputJson(errorReport, saveLocation('report_errors'));
     outputCsv(reducedQuestionsData, saveLocation('report_main'));
+    // outputJson(reformedQuizData, saveLocation('report_full-not-reduced-everything'));
     console.log('FILES SUCCESSFULLY WRITTEN...EXITING PROGRAM.');
     return;
 

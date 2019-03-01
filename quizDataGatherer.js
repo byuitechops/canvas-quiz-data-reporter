@@ -1,5 +1,7 @@
 const canvas = require('canvas-api-wrapper');
-const QBTools = require('canvas-question-banks');
+const subdomain = process.argv[3];
+canvas.subdomain = subdomain;
+// const QBTools = require('canvas-question-banks');
 
 /*************************************************************************
  * 
@@ -17,7 +19,7 @@ async function searchQuizBanks(courseId, QuestionBanksTools, errorsAccumulator) 
         try {
             await questionBanks.getAll();
         } catch (e) {
-            e.message2 = `Question Bank Bank Failure: https://byui.instructure.com/courses/${courseId}, StatusCode: ${e.statusCode}`;
+            e.message2 = `Question Bank Bank Failure: https://${subdomain}.instructure.com/courses/${courseId}, StatusCode: ${e.statusCode}`;
             throw e;
         }
         // For each question bank in that course
@@ -26,7 +28,7 @@ async function searchQuizBanks(courseId, QuestionBanksTools, errorsAccumulator) 
             try {
                 await bank.getQuestions();
             } catch (e) {
-                e.message2 = `Question Bank Question Failure: https://byui.instructure.com/courses/${courseId}/question_banks/${bank._id} , StatusCode: ${e.statusCode}`;
+                e.message2 = `Question Bank Question Failure: https://${subdomain}.instructure.com/courses/${courseId}/question_banks/${bank._id} , StatusCode: ${e.statusCode}`;
                 throw e;
             }
         }

@@ -1,3 +1,4 @@
+const subdomain = process.argv[3];
 function quizDataTransformer(quizzesData) {
     var canvasQuizzes = quizzesData.canvasQuizzes;
     var questionBanks = quizzesData.questionBanks;
@@ -9,7 +10,7 @@ function quizDataTransformer(quizzesData) {
         course_name: (() => courseData.name || null)(),
         course_code: (() => courseData.course_code || null)(),
         course_sisid: (() => courseData.sis_course_id || null)(),
-        course_html_url: (() => courseData.html_url || courseData.url || courseData.id ? `https://byui.instructure.com/courses/${courseData.id}` : null)(),
+        course_html_url: (() => courseData.html_url || courseData.url || courseData.id ? `https://${subdomain}.instructure.com/courses/${courseData.id}` : null)(),
         course_quizzes_banks: [].concat(quizAndBankDataFormatter(questionBanks, 'bank'), quizAndBankDataFormatter(canvasQuizzes, 'quiz')) || null
     }
 
@@ -41,7 +42,7 @@ function quizDataTransformer(quizzesData) {
     }
 
     function prepareQuestionBank(questionBank, courseId) {
-        questionBank.html_url = `https://byui.instructure.com/courses/${courseId}/question_banks/${questionBank.id}` || null;
+        questionBank.html_url = `https://${subdomain}.instructure.com/courses/${courseId}/question_banks/${questionBank.id}` || null;
         return questionBank;
     }
 }
