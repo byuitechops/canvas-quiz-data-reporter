@@ -1,24 +1,35 @@
 const deepSearch = require('./deepSearch');
 const questionIssueCheckers = require('./questionIssueCheckers');
 
+
+/*************************************************************************
+ * Main
+ *************************************************************************/
 function quizDataReducer(questionsData) {
     return checkByQuestionType(questionsData)
 }
 
+/*************************************************************************
+ * Cycle through each question type as defined in questionIssueCheckers.js
+ *************************************************************************/
 function checkByQuestionType(questionsData) {
-    return Object.keys(questionIssueCheckers).reduce((questionsAcc, questionType) => {
-        let targetQuestions = questionReducer(questionsData, questionType, questionIssueCheckers[questionType].checkers, questionIssueCheckers[questionType].keeperKeys);
-        return questionsAcc.concat(targetQuestions);
+    return Object.keys(questionIssueCheckers).reduce((questionsAcc, questionType) => { // for each question type to check
+        let targetQuestions = questionReducer(questionsData,                                   // check each question 
+            questionType,                                    // with this question type
+            questionIssueCheckers[questionType].checkers,    // with these checkers
+            questionIssueCheckers[questionType].keeperKeys); // for check matches with these keys.
+        return questionsAcc.concat(targetQuestions);                                           // return the collection of matches.
     }, []);
 }
 
 /*************************************************************************
- *
+ * Seaches each question of the given question type, with the given checkers
+ * for matches on the given key names.
  *************************************************************************/
 function questionReducer(questionsData, questionType, checkers, keeperKeys) {
-    var matchingQuestions = questionsData.filter(filterToQuestionType, []);
-    var blankMatchingQuestions = matchingQuestions.reduce(reduceToSearchCriteria, []);
-    return blankMatchingQuestions;
+    var matchingQuestions = questionsData.filter(filterToQuestionType, []); // Filter down question list to specified question type
+    var blankMatchingQuestions = matchingQuestions.reduce(reduceToSearchCriteria, []); // filter question types down to types that also have issues.
+    return blankMatchingQuestions; // return list of questions that have issues.
 
     /****************************************************************
      * Reduces list of questions down to the only the question type
@@ -28,42 +39,24 @@ function questionReducer(questionsData, questionType, checkers, keeperKeys) {
     }
 
     /****************************************************************
-     *
+     * TODO For each keeper key index, make it a list of ORs. so text || html
      *****************************************************************/
-    function reduceToSearchCriteria(questionAcc, question) {
-        // let flatObject = deepSearch(question, RegExp(/[\s\S]*/)); // abstracts hirarchy of object into values and paths
-        // let newKeeperKeys = keeperKeys.map(keys => {
-        //     if (!Array.isArray(keys)) {
-        //         keys = [keys];
-        //     }
-        //     return keys.filter(key => {
-        //         return flatObject.some(property => last(property.path) === key)
-        //     })
-        // })
-        let criteriaMet = checkers.reduce((checkAcc, checker) => {
-            let searchMatches = deepSearch(question, checker.validator)
-            // let filterMatches = newKeeperKeys.filter(keyArr => {
-            //     // output is a list of keys that had a match
-            //     return keyArr.every(key => {
-            //         return searchMatches.some(match => {
-            //             return match.path[match.path.length - 1] === key;
-            //         })
-            //     })
-            // })
-            // console.log(filterMatches)
-            let filterMatches = searchMatches.filter((match) => {
-                return keeperKeys.some(key => key === match.path.pop())
-            })
-            if (filterMatches.length > 0) {
-                question.question_flagReason.push(checker.flagReason);
-                checkAcc = true;
-            }
+    function reduceToSearchCriteria(questionAcc, question) { // For Each Question,
+        let criteriaMet = checkers.reduce((checkAcc, checker) => { // Run Each Test,
+            let searchMatches = deepSearch(question, checker.validator) // Find ALL positive matches,
+            let filterMatches = searchMatches.filter((match) => { // Filter down question list...
+                return keeperKeys.some(key => key === match.path.pop()) // ...based on whether there was an issue with... 
+            })                                                          // ...a key that match the desired search keys.
+            if (filterMatches.length > 0) {                             // If there was one or more issues in a question
+                question.question_flagReason.push(checker.flagReason);  // Add the checker flag reason to the question
+                checkAcc = true;                                        // Then set the accumulator to /true/ to indicate that...
+            }                                                           // ...the program should record this question in its output.
             return checkAcc
         }, false);
 
-        if (criteriaMet)
-            questionAcc.push(question);
-        return questionAcc;
+        if (criteriaMet)                // If the question had one or more issues,
+            questionAcc.push(question); // Add the question to the output collection.
+        return questionAcc;             // Return the accumulator with the new state of the collection.
     }
 }
 
@@ -135,21 +128,3 @@ function quizDataReducerTest() {
         }
     };
 }
-
-/*
-            // let filterMatches = searchMatches.filter((match) => {
-            //     return keeperKeys.some(keyToKeep => {
-            //         //keyToKeep = ['text','html'] or 'text'
-            //         let keyInMatch = match.path.pop(); // any key that has been matched in the object
-            //         if (!Array.isArray(keyToKeep))
-            //             return keyToKeep === keyValueToMatch;
-            //         keyToKeep.every(key => )
-            //     })
-            // })
-            let filterMatches = checker.keeperKeys.filter(keysToKeep => {
-                return keysToKeep.every(key => {
-                    return searchMatches.some(match => match.path[match.path.length - 1] === key || );
-                })
-
-            })
-            */
