@@ -25,14 +25,18 @@ module.exports = function deepSearch(searchItem, searchPhrase) {
      *********************************************************************/
     function recursiveSearch(item, accumulator, searchPath = []) {
         if (typeof item === 'object' && item !== null) {
-            Object.keys(item).forEach(key => { recursiveSearch(item[key], accumulator, searchPath.concat(key)); });
+            var keys = Object.keys(item);
+            keys.forEach(key => uniqueKeys.find((unique) => unique === key) || uniqueKeys.push(key));
+            keys.forEach(key => { recursiveSearch(item[key], accumulator, searchPath.concat(key)); });
         } else if (compareValues(item, searchPhrase)) {
             accumulator.push({ match: item, path: searchPath });
         }
     }
 
     var searchMatches = []; // The thing to hold data between recursions
+    var uniqueKeys = [];
     recursiveSearch(searchItem, searchMatches, []);
+    searchMatches.uniqueKeys = uniqueKeys;
     return searchMatches;
 
 };

@@ -27,6 +27,7 @@ function checkByQuestionType(questionsData) {
  * for matches on the given key names.
  *************************************************************************/
 function questionReducer(questionsData, questionType, checkers, keeperKeys) {
+    keeperKeys = keeperKeys.map((key => Array.isArray(key) ? key : [].concat(key))); // Make sure each key collection in keeper keys is an array.
     var matchingQuestions = questionsData.filter(filterToQuestionType, []); // Filter down question list to specified question type
     var blankMatchingQuestions = matchingQuestions.reduce(reduceToSearchCriteria, []); // filter question types down to types that also have issues.
     return blankMatchingQuestions; // return list of questions that have issues.
@@ -40,14 +41,37 @@ function questionReducer(questionsData, questionType, checkers, keeperKeys) {
 
     /****************************************************************
      * TODO For each keeper key index, make it a list of ORs. so text || html
+     * If text has a problem, but html does not, don't record problem
+     * If html has a problem, but text does not, don't record problem
+     * If text and html have problems, record problem
      *****************************************************************/
     function reduceToSearchCriteria(questionAcc, question) { // For Each Question,
         let criteriaMet = checkers.reduce((checkAcc, checker) => { // Run Each Test,
             let searchMatches = deepSearch(question, checker.validator) // Find ALL positive matches,
-            let filterMatches = searchMatches.filter((match) => { // Filter down question list...
-                return keeperKeys.some(key => key === match.path.pop()) // ...based on whether there was an issue with... 
-            })                                                          // ...a key that match the desired search keys.
-            if (filterMatches.length > 0) {                             // If there was one or more issues in a question
+            let someIssuesFound = keeperKeys.some(keyCollection => { // Determine if each issue exists by checking each key collection.
+                let issuesFound;                                     // If an issue is found, state so in this var.
+                if (checker.checkEvery) {                            // If checkEvery is true... 
+                    let filteredKeyCollection = keyCollection.filter(key => { // ...filter down the list of keys in the collection...
+                        let matchFound = searchMatches.uniqueKeys.some(uniqueKey => {   // ...to include only keys that exist on the searched object...
+                            return key === uniqueKey;                         // ...by comparing each unique key to the key in question.
+                        });
+                        return matchFound;
+                    });                                                       // Then...
+                    issuesFound = filteredKeyCollection.every(key => {        // ...check if the problem exists on every key in the filtered collection...
+                        return searchMatches.some(match => {                  // ...by checking the keys of all found issues...
+                            return key === match.path[match.path.length - 1]; // ...to see if the problem exists on that key in the collection.
+                        })
+                    })
+                } else {                                            // else,
+                    let allKeys = [].concat(...keyCollection)       // ...flatten the given key collection...
+                    issuesFound = allKeys.some((key) => {                  // ...and search each key name...
+                        return searchMatches.some(match => key === match.path[match.path.length - 1]); // ...to see if any matching issue is found.
+                    })
+                }
+                return issuesFound;
+            })
+
+            if (someIssuesFound) {                                      // If, after reduction, there are one or more issues in a question,
                 question.question_flagReason.push(checker.flagReason);  // Add the checker flag reason to the question
                 checkAcc = true;                                        // Then set the accumulator to /true/ to indicate that...
             }                                                           // ...the program should record this question in its output.
@@ -61,70 +85,3 @@ function questionReducer(questionsData, questionType, checkers, keeperKeys) {
 }
 
 module.exports = quizDataReducer;
-
-// quizDataReducerTest();
-
-function quizDataReducerTest() {
-    let question = [{
-        "course_id": "10001",
-        "course_name": "MA",
-        "course_sisid": "C.O.1919.Wi.CCT 98.8",
-        "course_html_url": "https://byui.instructure.com/courses/10001",
-        "quizOrBank_type": "bank",
-        "quizOrBank_id": "100001",
-        "quizOrBank_title": "Question Bank: Self Assessment",
-        "quizOrBank_html_url": "https://byui.instructure.com/courses/10001/question_banks/100001",
-        "question_id": 1000001,
-        "question_name": "Question",
-        "question_type": "short_answer_question",
-        "question_text": "<div class=\"byui CCT98\">\n    How Many problems can be found in a course?</p>\n</div>",
-        "question_answers": [
-            {
-                "text": "RESPONSE_-w",
-                "html": "response_",
-                "weight": 100,
-                "comments": "",
-                "id": 10001
-            }
-        ],
-        "question_matches": null,
-        "question_matching_answer_incorrect_matches": null,
-        "question_flagReason": []
-    }]
-
-    let checkByType = {
-        checkers: [blankTest(), hyphenTest(), textTest('response_'),],
-        keeperKeys: ['text'],
-    }
-
-    let output = quizDataReducer(question, "short_answer_question", checkByType.checkers, checkByType.keeperKeys);
-    console.dir(output, { depth: null })
-    // checks for blanks in fields
-    function blankTest() {
-        return {
-            validator: new RegExp(/^[\n\s\t\ufeff]+$|^(?![\s\S])$|^null$|^undefined$/, 'gi'),
-            flagReason: 'blank',
-        }
-    }
-    // Check for hyphens in fields
-    function hyphenTest() {
-        return {
-            validator: new RegExp(/-/, 'gi'),
-            flagReason: 'hyphen',
-        }
-    }
-    // check for matching text in fields
-    function textTest(text) {
-        return {
-            validator: new RegExp(text, 'gi'),
-            flagReason: `text matched: ${text}`,
-        }
-    }
-    // check for zero in fields
-    function zeroTest() {
-        return {
-            validator: new RegExp(/^0$/, 'i'),
-            flagReason: 'zero',
-        }
-    };
-}
